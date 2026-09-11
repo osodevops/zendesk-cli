@@ -303,7 +303,7 @@ async fn no_browser_login_reads_the_code_from_stdin_and_exchanges_with_pkce() {
             "access_token": "ac-token",
             "token_type": "bearer",
             "refresh_token": "rt-1",
-            "scope": "tickets:read tickets:write users:read organizations:read hc:read",
+            "scope": "read tickets:read tickets:write users:read organizations:read hc:read",
             "expires_in": 1800,
             "refresh_token_expires_in": 86400
         })))
@@ -339,7 +339,11 @@ async fn no_browser_login_reads_the_code_from_stdin_and_exchanges_with_pkce() {
     );
     assert!(stderr.contains("code_challenge_method=S256"), "{stderr}");
     assert!(stderr.contains("code_challenge="), "{stderr}");
-    assert!(stderr.contains("scope=tickets%3Aread"), "{stderr}");
+    // The agent preset leads with the global `read` scope (search endpoints need it).
+    assert!(
+        stderr.contains("scope=read") && stderr.contains("tickets%3Aread"),
+        "{stderr}"
+    );
     assert!(stderr.contains("state="), "{stderr}");
     assert!(stderr.contains("paste the authorization code"), "{stderr}");
     let summary = json(&out.stdout);
@@ -348,7 +352,7 @@ async fn no_browser_login_reads_the_code_from_stdin_and_exchanges_with_pkce() {
     assert!(
         summary["scopes"]
             .as_array()
-            .is_some_and(|s| s.len() == 5 && s.contains(&serde_json::json!("hc:read")))
+            .is_some_and(|s| s.len() == 6 && s.contains(&serde_json::json!("hc:read")))
     );
 
     let out = zdk_file_store(&h, &server.uri())

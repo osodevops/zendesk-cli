@@ -692,6 +692,7 @@ mod tests {
         assert_eq!(
             out,
             vec![
+                "read",
                 "tickets:read",
                 "users:read",
                 "organizations:read",
