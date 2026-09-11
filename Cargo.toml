@@ -37,7 +37,7 @@ async-trait = "0.1"
 # auth / crypto
 sha2 = "0.10"
 base64 = "0.23"
-getrandom = "0.3"
+getrandom = "0.4"
 tiny_http = "0.12"
 open = "5.4"
 secrecy = { version = "0.10", features = ["serde"] }
