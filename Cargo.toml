@@ -15,7 +15,7 @@ keywords = ["zendesk", "cli", "oauth", "support", "ai-agent"]
 categories = ["command-line-utilities"]
 
 [workspace.dependencies]
-zdk-core = { path = "crates/zdk-core" }   # add `version` when publishing to crates.io
+zdk-core = { path = "crates/zdk-core", version = "0.1.0" }   # keep equal to [workspace.package] version (guarded by scripts/check-release-version.py)
 
 # CLI
 clap = { version = "4.6", features = ["derive", "env", "string", "wrap_help"] }
