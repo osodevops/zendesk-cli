@@ -4126,7 +4126,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xtask"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4249,7 +4249,7 @@ dependencies = [
 
 [[package]]
 name = "zdk-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "arc-swap",
  "argon2",
@@ -4301,7 +4301,7 @@ dependencies = [
 
 [[package]]
 name = "zendesk-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "chrono",

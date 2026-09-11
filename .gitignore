@@ -27,3 +27,7 @@ tokens.enc
 # OS artifacts
 .DS_Store
 Thumbs.db
+
+# Python bytecode from running scripts/*.py locally
+__pycache__/
+*.pyc

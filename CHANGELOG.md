@@ -11,6 +11,8 @@ the GitHub Release body, so every release PR must add one. Unreleased work goes 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-11
+
 ### Added
 
 - **Authentication** (`zdk auth`): OAuth authorization code with PKCE on a single-use loopback listener (`--port`, `--no-browser` with a paste-back flow, `--redirect-uri`, `--expires-in`), client credentials for CI (`--client-credentials`, `--store-secret`), and the legacy API-token ramp (`--api-token`) that prints a one-line countdown to the 27 Oct 2026 / 30 Apr 2027 deadlines. `status`, `whoami`, `refresh [--force]`, `logout [--no-revoke]`, `test`, `token --format raw|bearer|json`, and `scopes list|show|check|preset` over the 52-scope catalogue with the `agent`, `admin`, `readonly` and `exporter` presets. Pre-emptive refresh at 80 % of the token lifetime with rotation persisted before use; local scope pre-flight (`SCOPE_MISSING`, exit 4) before any request.
@@ -25,3 +27,6 @@ the GitHub Release body, so every release PR must add one. Unreleased work goes 
 - **Output**: `table` on a terminal, `json` when piped, plus `ndjson`, `csv`, `tsv`, `yaml` and `raw`; `--fields`/`--exclude` projection, `--compact`, `--sideload` joins, an embedded jq filter (`--jq`), and one-line JSON errors on stderr with stable `code` strings and exit codes; `zdk --help-json` for tool-definition generation.
 - **Shell integration**: `zdk completions bash|zsh|fish|powershell|elvish` and `zdk man --to DIR` (one page per subcommand), both shipped in release archives.
 - **Distribution**: 7-target release pipeline (macOS arm64/x64, Linux musl arm64/x64 and glibc x64, Windows x64/arm64) with build-provenance attestations, `checksums-sha256.txt`, Homebrew tap and Scoop bucket updates.
+
+[Unreleased]: https://github.com/osodevops/zendesk-cli/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/osodevops/zendesk-cli/releases/tag/v0.1.0

@@ -37,12 +37,12 @@ fn version_flag_and_command() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::is_match(r"^zdk 0\.0\.0\n$").expect("re"));
+        .stdout(predicate::str::is_match(r"^zdk \d+\.\d+\.\d+\n$").expect("re"));
     h.zdk()
         .args(["version", "-o", "table"])
         .assert()
         .success()
-        .stdout("zdk 0.0.0\n");
+        .stdout(concat!("zdk ", env!("CARGO_PKG_VERSION"), "\n"));
     // Piped (the default here) means JSON.
     let out = h
         .zdk()
@@ -52,7 +52,7 @@ fn version_flag_and_command() {
         .get_output()
         .stdout
         .clone();
-    assert_eq!(json(&out)["version"], "0.0.0");
+    assert_eq!(json(&out)["version"], env!("CARGO_PKG_VERSION"));
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn version_json_has_target_and_spec_versions() {
         .stdout
         .clone();
     let v = json(&out);
-    assert_eq!(v["version"], "0.0.0");
+    assert_eq!(v["version"], env!("CARGO_PKG_VERSION"));
     assert!(v["target"].as_str().is_some_and(|t| t.contains('-')), "{v}");
     assert!(v["spec_versions"].is_array(), "{v}");
 }
@@ -85,7 +85,7 @@ fn help_json_is_a_walkable_tree() {
         .clone();
     let v = json(&out);
     assert_eq!(v["binary"], "zdk");
-    assert_eq!(v["version"], "0.0.0");
+    assert_eq!(v["version"], env!("CARGO_PKG_VERSION"));
     let subs = v["subcommands"].as_array().expect("subcommands");
     let config = subs
         .iter()
