@@ -130,7 +130,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends musl-tools
-          echo "CC_${TARGET}=musl-gcc" | tr '-' '_' >> "$GITHUB_ENV"
+          echo "CC_$(printf %s "$TARGET" | tr '-' '_')=musl-gcc" >> "$GITHUB_ENV"
       - name: Build
         run: cargo build --release --locked -p zendesk-cli --target "${TARGET}"
       - name: Verify musl binary is static
