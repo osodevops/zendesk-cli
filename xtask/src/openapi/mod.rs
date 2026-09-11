@@ -574,7 +574,10 @@ mod tests {
                 .as_array()
                 .is_some_and(|p| p.iter().any(|p| p["name"] == "page"))
         );
-        assert_eq!(lt["responses"]["200"]["properties"]["tickets"]["type"], "array");
+        assert_eq!(
+            lt["responses"]["200"]["properties"]["tickets"]["type"],
+            "array"
+        );
         // One level below the response object the Ticket schema is inlined too.
         assert!(lt["responses"]["200"]["properties"]["tickets"]["items"]["properties"].is_object());
         assert!(obj["support.CreateTicket"]["request_body"].is_object());
