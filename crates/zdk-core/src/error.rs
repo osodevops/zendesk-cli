@@ -226,10 +226,13 @@ impl ZdkError {
             Self::Auth(AuthFailure::TokenEndpoint { .. }) => "AUTH_TOKEN_ENDPOINT",
             Self::Auth(AuthFailure::CodeExpired) => "AUTH_CODE_EXPIRED",
             Self::Auth(AuthFailure::FlowAborted { .. }) => "AUTH_FLOW_ABORTED",
+            // Only claim a scope is missing when we know what was granted; a static or API
+            // token has unknown grants, so a 403 may equally be an agent-permission problem.
             Self::Forbidden {
                 required_scope: Some(_),
+                granted,
                 ..
-            } => "SCOPE_MISSING",
+            } if !granted.is_empty() => "SCOPE_MISSING",
             Self::Forbidden { .. } => "FORBIDDEN",
             Self::NotFound { .. } => "NOT_FOUND",
             Self::Validation { .. } => "VALIDATION",
@@ -280,9 +283,14 @@ impl ZdkError {
             Self::Auth(AuthFailure::CodeExpired) => Some(
                 "Zendesk authorization codes are valid for 120 seconds. Run `zdk auth login` again and complete the browser step promptly.".into(),
             ),
+            Self::Forbidden { required_scope: Some(scope), granted, .. } if granted.is_empty() => {
+                Some(format!(
+                    "This operation needs {scope}. Your token's granted scopes are unknown (static or API token), so this may also be an agent-permission problem: check the OAuth client's Allowed scopes and the agent's role in Admin Center."
+                ))
+            }
             Self::Forbidden { required_scope: Some(scope), granted, .. } => Some(format!(
                 "This command requires {scope}. Granted: {}. Run `zdk auth login --scopes <list>` to re-authenticate with it (add it to the client's Allowed scopes first if needed).",
-                if granted.is_empty() { "(unknown)".to_string() } else { granted.join(", ") }
+                granted.join(", ")
             )),
             Self::Forbidden { .. } => Some("Check the agent's role and permissions in Zendesk Admin Center, then retry.".into()),
             Self::NotFound { .. } => Some("If that value is a name rather than an id, try the resource's `search` command first.".into()),
@@ -417,11 +425,20 @@ mod tests {
             ZdkError::Forbidden {
                 message: String::new(),
                 required_scope: Some("tickets:write".into()),
-                granted: vec![],
+                granted: vec!["tickets:read".into()],
                 request_id: None
             }
             .error_code(),
             "SCOPE_MISSING"
         );
+        // Unknown grants (static/API token): honest FORBIDDEN, hint still names the scope.
+        let unknown = ZdkError::Forbidden {
+            message: String::new(),
+            required_scope: Some("tickets:write".into()),
+            granted: vec![],
+            request_id: None,
+        };
+        assert_eq!(unknown.error_code(), "FORBIDDEN");
+        assert!(unknown.help_text().unwrap().contains("tickets:write"));
     }
 }

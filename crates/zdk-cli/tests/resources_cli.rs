@@ -876,12 +876,13 @@ async fn tickets_errors_map_to_exit_codes() {
         .get_output()
         .clone();
     let err = stderr_error(&out.stderr);
-    assert_eq!(err["error"]["code"], "SCOPE_MISSING");
+    // A static token has unknown grants: an honest FORBIDDEN, but the hint still names the scope.
+    assert_eq!(err["error"]["code"], "FORBIDDEN");
     assert_eq!(err["error"]["exit_code"], 4);
     assert!(
         err["error"]["help"]
             .as_str()
-            .is_some_and(|h| h.contains("tickets:write") && h.contains("(unknown)")),
+            .is_some_and(|h| h.contains("tickets:write") && h.contains("unknown")),
         "{err}"
     );
 

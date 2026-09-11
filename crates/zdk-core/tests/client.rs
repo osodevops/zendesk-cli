@@ -453,7 +453,8 @@ async fn forbidden_maps_the_required_scope_from_the_registry() {
         .await
         .unwrap_err();
     assert_eq!(err.exit_code(), 4);
-    assert_eq!(err.error_code(), "SCOPE_MISSING");
+    // `bearer()` has unknown grants, so the code is FORBIDDEN; the hint still carries the scope.
+    assert_eq!(err.error_code(), "FORBIDDEN");
     match err {
         ZdkError::Forbidden {
             required_scope,
