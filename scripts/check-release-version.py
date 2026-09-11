@@ -171,6 +171,25 @@ def verify_changelog_version(version: str) -> None:
         fail(f"CHANGELOG.md is missing a `## [{version}]` release section (it becomes the release body).")
 
 
+def verify_internal_dep_pins(version: str) -> None:
+    """[workspace.dependencies] path entries for workspace members carry a `version`
+    (crates.io requires it); it must equal the workspace version or `cargo update`
+    and publishing break in confusing ways."""
+    root = parse_toml(Path("Cargo.toml").read_text(encoding="utf-8"), "Cargo.toml")
+    members = load_workspace_member_names()
+    stale: list[str] = []
+    for name, spec in root.get("workspace", {}).get("dependencies", {}).items():
+        if isinstance(spec, dict) and "path" in spec and name in members:
+            pinned = spec.get("version")
+            if isinstance(pinned, str) and pinned.lstrip("=^") != version:
+                stale.append(f"{name} pins {pinned}")
+    if stale:
+        fail(
+            f"[workspace.dependencies] path pins are out of sync with {version}: "
+            f"{', '.join(stale)}. Edit the `version = ...` on those entries in Cargo.toml."
+        )
+
+
 def tag_exists(tag: str) -> bool:
     result = subprocess.run(
         ["git", "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}"],
@@ -225,6 +244,7 @@ def main() -> None:
         fail(f"[workspace.package] version must increase (base: {base_version}, head: {head_version}).")
 
     verify_lockfile_version(head_version)
+    verify_internal_dep_pins(head_version)
     verify_changelog_version(head_version)
 
     if args.mode == "guard" and args.event_name == "pull_request" and tag_exists(tag):
