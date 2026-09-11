@@ -1,16 +1,22 @@
 //! Per-invocation state shared by every command handler.
 
 use std::io::{self, BufRead, Write};
+use std::sync::Arc;
 
 use serde_json::Value;
+use tokio::sync::OnceCell;
 use tokio_util::sync::CancellationToken;
+use zdk_core::auth::{AuthProvider, StaticBearer};
 use zdk_core::config::{EnvOverrides, GlobalArgs, Settings};
+use zdk_core::error::AuthFailure;
+use zdk_core::http::{AuditLogObserver, RateGovernor, RetryPolicy, ZendeskClient, redact};
 use zdk_core::output::{self, OutputFormat, RenderOptions, jq};
+use zdk_core::store::{MemoryStore, SharedStore};
 use zdk_core::{Result, ZdkError};
 
 /// Everything a command needs: resolved settings, the chosen output format, cancellation,
-/// and the terminal facts computed once at startup. (P2 adds the lazy HTTP client; P3 the auth
-/// provider and credential store.)
+/// the terminal facts computed once at startup, and — built lazily on first use — the auth
+/// provider and the rate-limited HTTP client.
 #[derive(Debug)]
 pub struct AppContext {
     pub settings: Settings,
@@ -19,11 +25,14 @@ pub struct AppContext {
     /// Environment as read once at startup (secrets stay wrapped).
     pub env: EnvOverrides,
     pub output: OutputFormat,
-    /// Cancelled on ctrl-c; the HTTP client and paginator (P2) poll it between requests.
-    #[allow(dead_code)]
+    /// Cancelled on ctrl-c; the HTTP client and paginator poll it between requests.
     pub cancel: CancellationToken,
     pub stdout_is_tty: bool,
     pub stdin_is_tty: bool,
+    /// The invoking command line with secret flag values redacted (for the audit log).
+    pub command_line: String,
+    provider: OnceCell<Arc<dyn AuthProvider>>,
+    client: OnceCell<Arc<ZendeskClient>>,
 }
 
 impl AppContext {
@@ -37,6 +46,7 @@ impl AppContext {
     ) -> Self {
         let output = settings.output.format;
         let stdout_is_tty = args.stdout_is_tty;
+        let invocation: Vec<String> = std::env::args().skip(1).collect();
         Self {
             settings,
             args,
@@ -45,7 +55,94 @@ impl AppContext {
             cancel,
             stdout_is_tty,
             stdin_is_tty,
+            command_line: redact::redact_argv(&invocation),
+            provider: OnceCell::new(),
+            client: OnceCell::new(),
         }
+    }
+
+    /// The auth provider for the active profile (resolved once). With `--dry-run` a missing
+    /// credential is not an error: nothing is sent, so a placeholder token is used.
+    pub async fn provider(&self) -> Result<Arc<dyn AuthProvider>> {
+        self.provider
+            .get_or_try_init(|| async { self.resolve_provider() })
+            .await
+            .cloned()
+    }
+
+    fn resolve_provider(&self) -> Result<Arc<dyn AuthProvider>> {
+        // A token in the environment never needs the store; skip the keyring probe entirely.
+        let store: SharedStore = if self.env.access_token.is_some() || self.env.api_token.is_some()
+        {
+            Arc::new(MemoryStore::new())
+        } else {
+            zdk_core::store::open(
+                self.settings.credential_store,
+                &self.settings.paths,
+                &self.env,
+            )?
+        };
+        match zdk_core::auth::resolve_provider(&self.settings, &self.env, store) {
+            Ok(p) => Ok(p),
+            Err(ZdkError::Auth(AuthFailure::NotLoggedIn { .. })) if self.settings.dry_run => {
+                Ok(Arc::new(StaticBearer::new(
+                    "dry-run",
+                    self.settings.profile_name.clone(),
+                )))
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// The HTTP client (built once): base URL from the profile, the resolved auth provider,
+    /// the rate governor with per-profile learned limits, retries, `--dry-run`, `--audit-log`
+    /// and ctrl-c cancellation.
+    pub async fn client(&self) -> Result<Arc<ZendeskClient>> {
+        self.client
+            .get_or_try_init(|| async {
+                let provider = self.provider().await?;
+                self.client_with_provider(provider)
+            })
+            .await
+            .cloned()
+    }
+
+    /// A client for an explicit provider (e.g. `auth login` verifying a token it just minted).
+    pub fn client_with_provider(
+        &self,
+        provider: Arc<dyn AuthProvider>,
+    ) -> Result<Arc<ZendeskClient>> {
+        let base = self.settings.require_base_url()?.clone();
+        let governor = RateGovernor::new(&self.settings.rate_limit)
+            .with_state(&self.settings.paths.state_dir, &self.settings.profile_name);
+        let mut builder = ZendeskClient::builder(base)
+            .auth(provider)
+            .governor(Arc::new(governor))
+            .retry(RetryPolicy::from_settings(
+                &self.settings.retry,
+                &self.settings.rate_limit,
+            ))
+            .timeout(self.settings.timeout)
+            .dry_run(self.settings.dry_run, self.output)
+            .cancel(self.cancel.clone())
+            .profile(self.settings.profile_name.clone())
+            .command(self.command_line.clone());
+        if let Some(path) = &self.settings.audit_log {
+            builder = builder.observer(Arc::new(AuditLogObserver::new(path)));
+        }
+        Ok(Arc::new(builder.build()?))
+    }
+
+    /// Call after a command succeeds: a refresh-token rotation that could not be persisted
+    /// during the run becomes exit 10 so the user re-authenticates instead of silently
+    /// losing the session.
+    pub fn finish(&self) -> Result<()> {
+        if let Some(provider) = self.provider.get()
+            && let Some(message) = provider.rotation_error()
+        {
+            return Err(ZdkError::CredentialStore(message));
+        }
+        Ok(())
     }
 
     /// Render options for the active format, with an optional table preset name.

@@ -743,3 +743,433 @@ fn quiet_silences_warnings_but_not_errors() {
         .code(10)
         .stderr(predicate::str::contains("CONFIG"));
 }
+
+// ---------------------------------------------------------------------------------------------
+// `zdk api` (P2): the escape hatch and the registry, against a wiremock Zendesk
+// ---------------------------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread")]
+async fn api_get_prints_the_body_as_json_when_piped_and_raw_untouched() {
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v2/users/me"))
+        .and(header("authorization", "Bearer test-token"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(r#"{"user":{"id":1,"name":"Ada"}}"#)
+                .insert_header("content-type", "application/json"),
+        )
+        .expect(3)
+        .mount(&server)
+        .await;
+
+    let h = Harness::new();
+    let out = h
+        .zdk_api(&server.uri())
+        .args(["api", "GET", "/api/v2/users/me"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    assert_eq!(json(&out)["user"]["name"], "Ada");
+    // Bare path defaults to GET; -o raw is the body untouched.
+    h.zdk_api(&server.uri())
+        .args(["api", "/api/v2/users/me", "-o", "raw"])
+        .assert()
+        .success()
+        .stdout("{\"user\":{\"id\":1,\"name\":\"Ada\"}}\n");
+    // --fields / --jq apply to the escape hatch too.
+    h.zdk_api(&server.uri())
+        .args(["api", "api/v2/users/me", "--jq", ".user.name"])
+        .assert()
+        .success()
+        .stdout("\"Ada\"\n");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn api_paginate_with_limit_streams_ndjson_across_pages() {
+    use wiremock::matchers::{method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v2/tickets"))
+        .and(query_param("page[after]", "c2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "tickets": [{"id": 3}, {"id": 4}],
+            "meta": {"has_more": false},
+            "links": {"next": null}
+        })))
+        .with_priority(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v2/tickets"))
+        .and(query_param("page[size]", "100"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "tickets": [{"id": 1}, {"id": 2}],
+            "meta": {"has_more": true, "after_cursor": "c2"},
+            "links": {"next": format!("{}/api/v2/tickets?page%5Bsize%5D=100&page%5Bafter%5D=c2", server.uri())}
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let h = Harness::new();
+    let out = h
+        .zdk_api(&server.uri())
+        .args([
+            "api",
+            "GET",
+            "/api/v2/tickets",
+            "--paginate",
+            "--limit",
+            "3",
+            "-o",
+            "ndjson",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8_lossy(&out);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 3, "{text}");
+    for (line, id) in lines.iter().zip(1..) {
+        assert_eq!(json(line.as_bytes())["id"], id, "{text}");
+    }
+}
+
+#[test]
+fn api_ops_and_describe_use_the_registry() {
+    let h = Harness::new();
+    let out = h
+        .zdk()
+        .args(["api", "ops", "--grep", "ListTickets", "-o", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let rows = json(&out);
+    let rows = rows.as_array().expect("array");
+    assert!(
+        rows.iter()
+            .any(|r| r["id"] == "ListTickets" && r["scope"] == "tickets:read"),
+        "{rows:?}"
+    );
+    h.zdk()
+        .args(["api", "ops", "--grep", "^ListTickets$", "-o", "table"])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("ID")
+                .and(predicate::str::contains("METHOD"))
+                .and(predicate::str::contains("PATH"))
+                .and(predicate::str::contains("PAGINATION"))
+                .and(predicate::str::contains("SCOPE"))
+                .and(predicate::str::contains("/api/v2/tickets")),
+        );
+    let out = h
+        .zdk()
+        .args(["api", "ops", "--spec", "voice", "-o", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let voice = json(&out);
+    let voice = voice.as_array().expect("array");
+    assert!(!voice.is_empty() && voice.iter().all(|r| r["spec"] == "voice"));
+    let out = h
+        .zdk()
+        .args(["api", "ops", "--deprecated", "-o", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    assert_eq!(json(&out).as_array().expect("array").len(), 4);
+    h.zdk()
+        .args(["api", "ops", "--spec", "nope"])
+        .assert()
+        .code(2);
+    h.zdk().args(["api", "ops", "--grep", "["]).assert().code(2);
+
+    let out = h
+        .zdk()
+        .args(["api", "describe", "ListTickets", "-o", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v = json(&out);
+    assert_eq!(v["scope"], "tickets:read");
+    assert_eq!(v["path"], "/api/v2/tickets");
+    assert_eq!(v["method"], "GET");
+    assert!(
+        v["parameters"]
+            .as_array()
+            .is_some_and(|p| p.iter().any(|x| x["name"] == "page")),
+        "{v}"
+    );
+    assert!(v.get("responses").is_none(), "schemas only with --schema");
+    let out = h
+        .zdk()
+        .args(["api", "describe", "CreateTicket", "--schema", "-o", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v = json(&out);
+    assert_eq!(v["body"], "required");
+    assert!(v["request_body"].is_object(), "{v}");
+    let out = h
+        .zdk()
+        .args(["api", "describe", "GET", "/api/v2/tickets/1", "-o", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    assert_eq!(json(&out)["id"], "ShowTicket");
+    h.zdk()
+        .args(["api", "describe", "ListLocales"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("support.ListLocales"));
+    h.zdk()
+        .args(["api", "describe", "NoSuchOperation"])
+        .assert()
+        .code(5);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn api_dry_run_prints_the_request_and_sends_nothing() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v2/tickets"))
+        .respond_with(ResponseTemplate::new(201))
+        .expect(0)
+        .mount(&server)
+        .await;
+
+    let h = Harness::new();
+    let out = h
+        .zdk_api(&server.uri())
+        .args([
+            "api",
+            "POST",
+            "/api/v2/tickets",
+            "--field",
+            "ticket.subject=x",
+            "--field",
+            "ticket.priority:=\"high\"",
+            "--dry-run",
+            "-o",
+            "json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    assert!(
+        out.stderr.is_empty(),
+        "dry run is not an error: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v = json(&out.stdout);
+    assert_eq!(v["method"], "POST");
+    assert!(
+        v["url"]
+            .as_str()
+            .is_some_and(|u| u.ends_with("/api/v2/tickets")),
+        "{v}"
+    );
+    assert_eq!(v["body"]["ticket"]["subject"], "x");
+    assert_eq!(v["body"]["ticket"]["priority"], "high");
+    assert_eq!(v["headers"]["authorization"], "Bearer [redacted]");
+    assert_eq!(v["headers"]["content-type"], "application/json");
+    assert!(v["headers"]["idempotency-key"].is_string(), "{v}");
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("test-token"));
+
+    h.zdk_api(&server.uri())
+        .args([
+            "api",
+            "POST",
+            "/api/v2/tickets",
+            "--data",
+            r#"{"ticket":{"subject":"y"}}"#,
+            "--dry-run",
+            "-o",
+            "table",
+        ])
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::starts_with("curl -X POST")
+                .and(predicate::str::contains("Bearer [redacted]")),
+        );
+    server.verify().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn api_errors_map_to_exit_codes_with_json_on_stderr() {
+    use common::stderr_error;
+    use wiremock::matchers::{method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v2/tickets/999"))
+        .respond_with(
+            ResponseTemplate::new(404)
+                .set_body_json(
+                    serde_json::json!({"error": "RecordNotFound", "description": "Not found"}),
+                )
+                .insert_header("x-request-id", "rid-404"),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v2/tickets/1"))
+        .respond_with(
+            ResponseTemplate::new(429)
+                .insert_header("retry-after", "30")
+                .insert_header("x-rate-limit", "200")
+                .insert_header("x-rate-limit-remaining", "0"),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v2/search"))
+        .and(query_param("page", "101"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "error": "InvalidPaginationParameter",
+            "description": "Offset pagination is limited to 10,000 records (page 100)"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let h = Harness::new();
+    let out = h
+        .zdk_api(&server.uri())
+        .args(["api", "GET", "/api/v2/tickets/999"])
+        .assert()
+        .code(5)
+        .get_output()
+        .clone();
+    assert!(out.stdout.is_empty());
+    let err = stderr_error(&out.stderr);
+    assert_eq!(err["error"]["code"], "NOT_FOUND");
+    assert_eq!(err["error"]["exit_code"], 5);
+    assert_eq!(err["error"]["request_id"], "rid-404");
+    assert!(
+        err["error"]["message"]
+            .as_str()
+            .is_some_and(|m| m.contains("ticket '999' not found")),
+        "{err}"
+    );
+
+    let out = h
+        .zdk_api(&server.uri())
+        .args([
+            "--rate-limit-strategy",
+            "fail",
+            "api",
+            "GET",
+            "/api/v2/tickets/1",
+        ])
+        .assert()
+        .code(7)
+        .get_output()
+        .clone();
+    let err = stderr_error(&out.stderr);
+    assert_eq!(err["error"]["code"], "RATE_LIMITED");
+    assert!(
+        err["error"]["help"]
+            .as_str()
+            .is_some_and(|h| h.contains("30s")),
+        "{err}"
+    );
+
+    let out = h
+        .zdk_api(&server.uri())
+        .args([
+            "api",
+            "GET",
+            "/api/v2/search",
+            "--query",
+            "query=type:ticket",
+            "--query",
+            "page=101",
+        ])
+        .assert()
+        .code(12)
+        .get_output()
+        .clone();
+    let err = stderr_error(&out.stderr);
+    assert_eq!(err["error"]["code"], "PAGINATION_LIMIT");
+    assert!(
+        err["error"]["help"]
+            .as_str()
+            .is_some_and(|h| h.contains("search export")),
+        "{err}"
+    );
+}
+
+#[test]
+fn api_usage_errors_happen_before_any_request() {
+    let h = Harness::new();
+    let unreachable = "http://127.0.0.1:1";
+    h.zdk_api(unreachable).args(["api"]).assert().code(2);
+    h.zdk_api(unreachable)
+        .args(["api", "FROB", "/api/v2/tickets"])
+        .assert()
+        .code(2);
+    h.zdk_api(unreachable)
+        .args([
+            "api",
+            "POST",
+            "/api/v2/tickets",
+            "--data",
+            "{}",
+            "--field",
+            "a=b",
+        ])
+        .assert()
+        .code(2);
+    h.zdk_api(unreachable)
+        .args(["api", "POST", "/api/v2/tickets", "--field", "novalue"])
+        .assert()
+        .code(2);
+    h.zdk_api(unreachable)
+        .args(["api", "GET", "https://evil.example/api/v2/users/me"])
+        .assert()
+        .code(2);
+    h.zdk_api(unreachable)
+        .args(["api", "GET", "/api/v2/tickets/1", "--paginate"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("not paginated"));
+    // No token and no dry-run: exit 3 before any network access.
+    h.zdk()
+        .env("ZENDESK_BASE_URL", unreachable)
+        .args(["api", "GET", "/api/v2/users/me"])
+        .assert()
+        .code(3);
+}

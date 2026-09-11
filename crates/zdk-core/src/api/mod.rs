@@ -2,6 +2,7 @@
 //! hand-written curated wrappers (`curated/`).
 
 pub mod generated;
+pub mod template;
 
 use std::fmt;
 
@@ -236,6 +237,32 @@ pub fn find_operations(id: &str) -> Vec<&'static Operation> {
         .iter()
         .filter(|op| op.id.eq_ignore_ascii_case(bare) && spec.is_none_or(|s| op.spec == s))
         .collect()
+}
+
+/// Find the registry operation for a concrete request path (`/api/v2/tickets/42.json?x=1`
+/// matches `/api/v2/tickets/{ticket_id}`). The most specific template wins, so
+/// `/api/v2/users/me` is `ShowCurrentUser`, not `ShowUser`. `None` when nothing matches —
+/// the escape hatch still sends the request, it just cannot infer pagination or scope.
+#[must_use]
+pub fn match_path(method: Method, path: &str) -> Option<&'static Operation> {
+    let normalized = template::normalize(path);
+    operations()
+        .iter()
+        .filter(|op| op.method == method)
+        .filter(|op| template::match_template(op.path, &normalized).is_some())
+        .max_by_key(|op| {
+            (
+                template::specificity(op.path),
+                // Deterministic tie-break: Support before Help Center before Voice.
+                std::cmp::Reverse(op.spec),
+            )
+        })
+}
+
+/// The path parameters of `path` under `op.path`, e.g. `[("ticket_id", "42")]`.
+#[must_use]
+pub fn path_params(op: &Operation, path: &str) -> Vec<(String, String)> {
+    template::match_template(op.path, &template::normalize(path)).unwrap_or_default()
 }
 
 /// Descriptions and flattened request/response schemas for every operation, inflated on first
@@ -539,6 +566,58 @@ mod tests {
             detail::describe(Spec::HelpCenter, "ListLocales")
                 .map(|d| d["responses"]["200"].is_object()),
             Some(true)
+        );
+    }
+}
+
+#[cfg(test)]
+mod match_path_tests {
+    use super::*;
+
+    #[test]
+    fn concrete_paths_resolve_to_the_most_specific_operation() {
+        assert_eq!(
+            match_path(Method::Get, "/api/v2/tickets/42").map(|o| o.id),
+            Some("ShowTicket")
+        );
+        assert_eq!(
+            match_path(Method::Get, "/api/v2/tickets/42.json?include=users").map(|o| o.id),
+            Some("ShowTicket")
+        );
+        assert_eq!(
+            match_path(Method::Get, "api/v2/users/me").map(|o| o.id),
+            Some("ShowCurrentUser")
+        );
+        assert_eq!(
+            match_path(Method::Get, "/api/v2/users/123").map(|o| o.id),
+            Some("ShowUser")
+        );
+        assert_eq!(
+            match_path(Method::Put, "/api/v2/tickets/42").map(|o| o.id),
+            Some("UpdateTicket")
+        );
+        assert_eq!(
+            match_path(Method::Get, "/api/v2/tickets").map(|o| o.id),
+            Some("ListTickets")
+        );
+        assert_eq!(
+            match_path(Method::Get, "/api/v2/search/export").map(|o| o.id),
+            Some("ExportSearchResults")
+        );
+        assert_eq!(
+            match_path(Method::Get, "/api/v2/help_center/en-us/articles").map(|o| o.id),
+            Some("ListArticles")
+        );
+        assert!(match_path(Method::Get, "/api/v2/nope/at/all").is_none());
+        assert!(match_path(Method::Patch, "/api/v2/tickets/42").is_none());
+    }
+
+    #[test]
+    fn path_params_are_extracted_from_the_matched_template() {
+        let op = match_path(Method::Put, "/api/v2/tickets/42.json").unwrap();
+        assert_eq!(
+            path_params(op, "/api/v2/tickets/42.json"),
+            vec![("ticket_id".to_string(), "42".to_string())]
         );
     }
 }

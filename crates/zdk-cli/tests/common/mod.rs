@@ -91,3 +91,32 @@ pub fn json(bytes: &[u8]) -> serde_json::Value {
         )
     })
 }
+
+/// Config used by the mock-server tests: no backoff, no local rate-limit buckets.
+pub const FAST_CONFIG: &str =
+    "[retry]\nmax_attempts = 3\nbase_ms = 0\nmax_ms = 0\n\n[rate_limit]\nstrategy = \"burst\"\n";
+
+impl Harness {
+    /// A `zdk` command pointed at a mock Zendesk (`ZENDESK_BASE_URL`) with a static bearer
+    /// token (`ZENDESK_ACCESS_TOKEN=test-token`). Writes [`FAST_CONFIG`] unless a config exists.
+    pub fn zdk_api(&self, base_url: &str) -> Command {
+        if !self.config_path().exists() {
+            self.write_config(FAST_CONFIG);
+        }
+        let mut cmd = self.zdk();
+        cmd.env("ZENDESK_BASE_URL", base_url)
+            .env("ZENDESK_ACCESS_TOKEN", "test-token");
+        cmd
+    }
+}
+
+/// The JSON error line the binary prints on stderr in machine formats.
+pub fn stderr_error(stderr: &[u8]) -> serde_json::Value {
+    let text = String::from_utf8_lossy(stderr);
+    let line = text
+        .lines()
+        .rev()
+        .find(|l| l.trim_start().starts_with('{'))
+        .unwrap_or_else(|| panic!("no JSON error line on stderr:\n{text}"));
+    serde_json::from_str(line).unwrap_or_else(|e| panic!("stderr line is not JSON ({e}): {line}"))
+}
