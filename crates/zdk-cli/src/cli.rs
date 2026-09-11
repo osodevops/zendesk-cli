@@ -19,6 +19,7 @@ diagnostic goes to stderr; exit codes are stable (see `zdk --help-json`).
 #[derive(Debug, Parser)]
 #[command(
     name = "zdk",
+    bin_name = "zdk", // usage lines must not become `zdk.exe` on Windows (help snapshots)
     version,
     about = "Zendesk CLI for AI agents and support operations",
     long_about = LONG_ABOUT,
