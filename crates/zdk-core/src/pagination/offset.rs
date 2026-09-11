@@ -30,7 +30,7 @@ pub fn alternatives_for(path: &str) -> Vec<String> {
         vec![
             "zdk tickets list --all  (cursor pagination, no depth limit)".into(),
             "zdk api GET /api/v2/tickets --paginate  (cursor dialect is inferred from the registry)".into(),
-            "zdk sync tickets  (incremental export, v0.4)".into(),
+            "incremental export via `zdk sync tickets` (planned for v0.4, not yet available)".into(),
         ]
     } else if p.contains("/views/") {
         vec![
@@ -40,7 +40,7 @@ pub fn alternatives_for(path: &str) -> Vec<String> {
     } else {
         vec![
             "the cursor dialect (`page[size]=…`) where the endpoint supports it — `zdk api ops --grep <resource>` shows PAGINATION".into(),
-            "an incremental export (`zdk sync …`, v0.4) for full-table walks".into(),
+            "an incremental export (`zdk sync …`, planned for v0.4, not yet available) for full-table walks".into(),
         ]
     }
 }

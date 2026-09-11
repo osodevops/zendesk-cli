@@ -305,7 +305,7 @@ impl ZdkError {
             Self::Server { .. } => Some(
                 "Check https://status.zendesk.com (or `zdk api GET https://status.zendesk.com/api/incidents`) and retry later.".into(),
             ),
-            Self::Validation { status: 409, .. } => Some("The ticket changed since you read it. Re-read it, or use --safe-update with a fresh --updated-stamp.".into()),
+            Self::Validation { status: 409, .. } => Some("The record changed since you read it. Re-read it and retry; for ticket updates, `--safe-update` with a fresh `--updated-stamp` makes the conflict explicit.".into()),
             Self::Config(_) => Some("Run `zdk config validate` to see every problem, or `zdk config init` to start over.".into()),
             _ => None,
         }

@@ -62,9 +62,16 @@ Then make the secrets visible (see above).
 
 Done when `gh api repos/osodevops/homebrew-tap/contents/Formula/zendesk-cli.rb --jq .sha` returns a SHA and the bucket workflow on `main` contains `update-zdk-manifest`.
 
-### (c) Initial commit
+### (c) Initial commits
 
-The scaffold is pushed straight to `main` as the first commit (`feat: scaffold zendesk-cli workspace, CI and release pipeline`) at version `0.0.0`. Everything after that lands as PRs so the v0.1.0 release PR is a real bump that exercises guard → auto-tag → release end to end.
+The v0.1.0 code landed on `main` as five phase commits at version `0.0.0` (scaffold/config/output/registry codegen; credential stores and OAuth engine; HTTP core, governor, pagination and `zdk api`; `zdk auth` and `zdk doctor`; the curated commands). The release PR is therefore a real `0.0.0 -> 0.1.0` bump that exercises guard → auto-tag → release end to end. Before opening it, prove the static musl build locally — with rustup's cargo first on `PATH`, because Homebrew's cargo shadows it on macOS:
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+rustup run 1.88.0 cargo check --workspace --all-targets --locked     # MSRV (not `cargo +1.88.0`)
+cross build --release --target x86_64-unknown-linux-musl -p zendesk-cli
+file target/x86_64-unknown-linux-musl/release/zdk                     # "statically linked"
+```
 
 ### (d) Watch CI and preflight
 
