@@ -290,8 +290,9 @@ const ALL_READ: &[&str] = &[
 pub static PRESETS: &[Preset] = &[
     Preset {
         name: "agent",
-        description: "Day-to-day agent work: tickets read/write, users/orgs/Help Center read",
+        description: "Day-to-day agent work: read (search) + tickets write, users/orgs/Help Center read",
         scopes: &[
+            "read", // Zendesk search endpoints require the global read scope
             "tickets:read",
             "tickets:write",
             "users:read",
@@ -303,6 +304,7 @@ pub static PRESETS: &[Preset] = &[
         name: "admin",
         description: "Agent preset plus business-rule and webhook administration",
         scopes: &[
+            "read", // Zendesk search endpoints require the global read scope
             "tickets:read",
             "tickets:write",
             "users:read",
@@ -323,6 +325,7 @@ pub static PRESETS: &[Preset] = &[
         name: "exporter",
         description: "Bulk export: tickets, users, organizations and the audit log",
         scopes: &[
+            "read", // Zendesk search endpoints require the global read scope
             "tickets:read",
             "users:read",
             "organizations:read",

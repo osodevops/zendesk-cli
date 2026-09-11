@@ -288,6 +288,10 @@ impl ZdkError {
                     "This operation needs {scope}. Your token's granted scopes are unknown (static or API token), so this may also be an agent-permission problem: check the OAuth client's Allowed scopes and the agent's role in Admin Center."
                 ))
             }
+            Self::Forbidden { required_scope: Some(scope), granted, .. } if scope == "read" => Some(format!(
+                "This command calls a Zendesk search endpoint, which requires the global `read` scope even when granular scopes such as tickets:read are granted. Granted: {}. Re-run `zdk auth login --preset agent` (presets include `read`) or `zdk auth login --scopes read,<your other scopes>`.",
+                if granted.is_empty() { "(unknown)".to_string() } else { granted.join(", ") }
+            )),
             Self::Forbidden { required_scope: Some(scope), granted, .. } => Some(format!(
                 "This command requires {scope}. Granted: {}. Run `zdk auth login --scopes <list>` to re-authenticate with it (add it to the client's Allowed scopes first if needed).",
                 granted.join(", ")

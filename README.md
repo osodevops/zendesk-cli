@@ -176,7 +176,7 @@ zdk auth logout --no-revoke             # remove the local credential; without t
 
 | Preset | Scopes |
 |---|---|
-| `agent` | `tickets:read`, `tickets:write`, `users:read`, `organizations:read`, `hc:read` |
+| `agent` | `read`, `tickets:read`, `tickets:write`, `users:read`, `organizations:read`, `hc:read` |
 | `admin` | `agent` plus `triggers:write`, `automations:write`, `macros:write`, `webhooks:write` |
 | `readonly` | every granular `*:read` scope (25 of them; never the legacy blanket `read`) |
 | `exporter` | `tickets:read`, `users:read`, `organizations:read`, `auditlogs:read` |

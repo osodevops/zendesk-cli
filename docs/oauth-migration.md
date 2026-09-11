@@ -41,7 +41,7 @@ With `--no-browser` (no listener runs: you paste the code back) the redirect is 
 
 | Preset | Scopes |
 |---|---|
-| `agent` | `tickets:read tickets:write users:read organizations:read hc:read` |
+| `agent` | `read tickets:read tickets:write users:read organizations:read hc:read` |
 | `admin` | `agent` + `triggers:write automations:write macros:write webhooks:write` |
 | `readonly` | every granular `*:read` scope |
 | `exporter` | `tickets:read users:read organizations:read auditlogs:read` |
