@@ -1,15 +1,19 @@
 //! Windows reserves 1 MiB of stack for the main thread; Linux and macOS give
 //! it 8 MiB. Building clap's command tree for this many subcommands uses
 //! almost all of that 1 MiB in an unoptimized build (measured at just under
-//! it on 2026-09-06), so on Windows every debug or test invocation of `teams`
-//! — `--help` included — overflowed the stack as soon as one more flag was
-//! added to `message`, and `cargo test` failed there while passing elsewhere.
+//! it in the sibling ms-teams-cli project), so on Windows a debug or test
+//! invocation of `zdk` — `--help` included — can overflow the stack as the
+//! command tree grows, making `cargo test` fail there while passing elsewhere.
 //!
 //! Reserving the same 8 MiB the Unix targets get removes the cliff. It is
 //! address space, not committed memory, so an idle process costs nothing
 //! extra. rustup does the same for the same reason (clap's debug-mode stack
 //! use, clap-rs/clap#5134). A build script survives CI overriding `RUSTFLAGS`, which a
 //! `.cargo/config.toml` `rustflags` entry would not.
+
+// Build scripts must read Cargo's CARGO_CFG_* variables directly; the workspace-wide
+// `disallowed_methods` rule (read env once in `zdk_core::config::env`) targets runtime code.
+#![allow(clippy::disallowed_methods)]
 
 use std::env;
 
