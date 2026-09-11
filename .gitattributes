@@ -1,0 +1,7 @@
+# Keep every text file LF on every platform: the spec snapshots are hashed and the
+# registry is regenerated from them, so a CRLF checkout on Windows would change both.
+* text=auto eol=lf
+*.gz binary
+*.png binary
+*.jpg binary
+*.ico binary
