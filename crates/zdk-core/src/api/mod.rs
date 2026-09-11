@@ -1,6 +1,7 @@
 //! The Zendesk API surface: the generated operation registry (`generated/`) plus the
 //! hand-written curated wrappers (`curated/`).
 
+pub mod curated;
 pub mod generated;
 pub mod template;
 

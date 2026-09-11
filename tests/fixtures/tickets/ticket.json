@@ -1,0 +1,48 @@
+{
+  "ticket": {
+    "id": 1,
+    "url": "https://example.zendesk.com/api/v2/tickets/1.json",
+    "external_id": "ORDER-4471",
+    "via": { "channel": "email", "source": { "from": { "address": "grace@example.com", "name": "Grace Hopper" }, "to": { "address": "support@example.zendesk.com", "name": "Example Support" }, "rel": null } },
+    "created_at": "2026-09-10T08:15:00Z",
+    "updated_at": "2026-09-11T06:34:57Z",
+    "type": "incident",
+    "subject": "API latency on eu-west-1",
+    "raw_subject": "API latency on eu-west-1",
+    "description": "Requests to the ticketing API take over 5 seconds.",
+    "priority": "high",
+    "status": "open",
+    "recipient": "support@example.zendesk.com",
+    "requester_id": 43,
+    "submitter_id": 42,
+    "assignee_id": 42,
+    "organization_id": 1001,
+    "group_id": 501,
+    "collaborator_ids": [],
+    "follower_ids": [],
+    "email_cc_ids": [],
+    "forum_topic_id": null,
+    "problem_id": null,
+    "has_incidents": false,
+    "is_public": true,
+    "due_at": null,
+    "tags": ["latency", "eu-west-1"],
+    "custom_fields": [
+      { "id": 360000001, "value": "production" },
+      { "id": 360000002, "value": null }
+    ],
+    "satisfaction_rating": { "score": "unoffered" },
+    "sharing_agreement_ids": [],
+    "custom_status_id": 1,
+    "fields": [
+      { "id": 360000001, "value": "production" },
+      { "id": 360000002, "value": null }
+    ],
+    "followup_ids": [],
+    "ticket_form_id": 7001,
+    "brand_id": 9001,
+    "allow_channelback": false,
+    "allow_attachments": true,
+    "from_messaging_channel": false
+  }
+}

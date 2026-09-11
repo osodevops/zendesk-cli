@@ -1,0 +1,8 @@
+{
+  "organizations": [
+    { "id": 1001, "url": "https://example.zendesk.com/api/v2/organizations/1001.json", "external_id": "ACME-1", "name": "Acme Corp", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z", "domain_names": ["acme.com", "acme.co.uk"], "details": "Enterprise customer", "notes": "", "group_id": 501, "shared_tickets": true, "shared_comments": false, "tags": ["enterprise", "emea"], "organization_fields": { "region": "EMEA" } },
+    { "id": 1002, "url": "https://example.zendesk.com/api/v2/organizations/1002.json", "external_id": null, "name": "Globex", "created_at": "2026-02-01T00:00:00Z", "updated_at": "2026-08-15T00:00:00Z", "domain_names": ["globex.example"], "details": "", "notes": "", "group_id": null, "shared_tickets": false, "shared_comments": false, "tags": [], "organization_fields": { "region": null } }
+  ],
+  "meta": { "has_more": false, "after_cursor": null, "before_cursor": null },
+  "links": { "next": null, "prev": null }
+}

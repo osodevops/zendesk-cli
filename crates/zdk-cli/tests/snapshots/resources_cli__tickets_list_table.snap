@@ -1,0 +1,10 @@
+---
+source: crates/zdk-cli/tests/resources_cli.rs
+expression: table
+---
+┌────┬────────┬──────────┬──────────────────────────┬──────────────┬──────────────┬──────────────────┐
+│ ID ┆ STATUS ┆ PRIORITY ┆ SUBJECT                  ┆ REQUESTER    ┆ ASSIGNEE     ┆ UPDATED          │
+╞════╪════════╪══════════╪══════════════════════════╪══════════════╪══════════════╪══════════════════╡
+│  1 ┆ open   ┆ high     ┆ API latency on eu-west-1 ┆ Grace Hopper ┆ Ada Lovelace ┆ 2026-09-11 06:34 │
+│  2 ┆ new    ┆ normal   ┆ How do I export my data? ┆ Grace Hopper ┆              ┆ 2026-09-09 12:00 │
+└────┴────────┴──────────┴──────────────────────────┴──────────────┴──────────────┴──────────────────┘

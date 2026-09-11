@@ -3,18 +3,18 @@
 //! (`zdk api ops`, `zdk api describe`). The escape hatch never refuses an unknown path; the
 //! registry only adds pagination dialect, items key and scope pre-flight when it recognises one.
 
-use std::io::Read;
 use std::pin::pin;
 
 use clap::{ArgAction, Args, Subcommand};
 use futures_util::StreamExt;
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use zdk_core::api::{self, BodyKind, Method, Operation, PageDialect, ParamIn, ParamType, Spec};
 use zdk_core::http::RequestSpec;
 use zdk_core::output::{self, OutputFormat};
 use zdk_core::pagination::{PageOptions, stream_pages};
 use zdk_core::{Result, ZdkError};
 
+use crate::args::body::build_body;
 use crate::context::AppContext;
 
 #[derive(Debug, Args)]
@@ -430,86 +430,6 @@ fn normalize_path(p: &str) -> String {
     }
 }
 
-/// `--data` (inline JSON, `@file`, `-`) or the `--field` set, never both.
-pub(crate) fn build_body(data: Option<&str>, fields: &[String]) -> Result<Option<Value>> {
-    if data.is_some() && !fields.is_empty() {
-        return Err(ZdkError::Usage(
-            "--data and --field cannot be combined; put everything in --data or use --field only"
-                .into(),
-        ));
-    }
-    if let Some(d) = data {
-        let text = match d {
-            "-" => {
-                let mut s = String::new();
-                std::io::stdin().read_to_string(&mut s)?;
-                s
-            }
-            file if file.starts_with('@') => {
-                let path = &file[1..];
-                std::fs::read_to_string(path)
-                    .map_err(|e| ZdkError::Usage(format!("--data: cannot read {path}: {e}")))?
-            }
-            inline => inline.to_string(),
-        };
-        let value: Value = serde_json::from_str(&text)
-            .map_err(|e| ZdkError::Usage(format!("--data is not valid JSON: {e}")))?;
-        return Ok(Some(value));
-    }
-    if fields.is_empty() {
-        return Ok(None);
-    }
-    let mut root = Value::Object(Map::new());
-    for f in fields {
-        let (key, value) = parse_field(f)?;
-        insert_dotted(&mut root, &key, value)?;
-    }
-    Ok(Some(root))
-}
-
-/// `k=v` → string, `k:=json` → parsed JSON.
-pub(crate) fn parse_field(f: &str) -> Result<(String, Value)> {
-    if let Some((k, v)) = f.split_once(":=") {
-        let value = serde_json::from_str(v)
-            .map_err(|e| ZdkError::Usage(format!("--field {k}: '{v}' is not valid JSON: {e}")))?;
-        return Ok((k.trim().to_string(), value));
-    }
-    if let Some((k, v)) = f.split_once('=') {
-        return Ok((k.trim().to_string(), Value::String(v.to_string())));
-    }
-    Err(ZdkError::Usage(format!(
-        "--field '{f}' must be key=value or key:=json"
-    )))
-}
-
-/// `ticket.custom_fields.0` style keys build nested objects (numeric segments are object keys,
-/// not array indexes — use `:=` with a JSON array for lists).
-pub(crate) fn insert_dotted(root: &mut Value, dotted: &str, value: Value) -> Result<()> {
-    let parts: Vec<&str> = dotted.split('.').collect();
-    let mut cur = root;
-    for (i, part) in parts.iter().enumerate() {
-        if part.is_empty() {
-            return Err(ZdkError::Usage(format!(
-                "--field '{dotted}': empty key segment"
-            )));
-        }
-        let obj = cur.as_object_mut().ok_or_else(|| {
-            ZdkError::Usage(format!(
-                "--field '{dotted}': '{}' is already set to a non-object value",
-                parts[..i].join(".")
-            ))
-        })?;
-        if i + 1 == parts.len() {
-            obj.insert((*part).to_string(), value);
-            return Ok(());
-        }
-        cur = obj
-            .entry((*part).to_string())
-            .or_insert_with(|| Value::Object(Map::new()));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -541,60 +461,6 @@ mod tests {
         );
         assert_eq!(parse_target(Some("POST"), None).unwrap_err().exit_code(), 2);
         assert_eq!(parse_target(None, None).unwrap_err().exit_code(), 2);
-    }
-
-    #[test]
-    fn fields_build_nested_objects_and_raw_json() {
-        let body = build_body(
-            None,
-            &[
-                "ticket.subject=Hello".into(),
-                "ticket.priority:=\"high\"".into(),
-                "ticket.tags:=[\"a\",\"b\"]".into(),
-                "ticket.requester.name=Ada".into(),
-                "count:=3".into(),
-            ],
-        )
-        .unwrap()
-        .unwrap();
-        assert_eq!(
-            body,
-            json!({
-                "ticket": {"subject": "Hello", "priority": "high", "tags": ["a", "b"], "requester": {"name": "Ada"}},
-                "count": 3
-            })
-        );
-        assert_eq!(
-            parse_field("a=b=c").unwrap(),
-            ("a".into(), Value::String("b=c".into()))
-        );
-        assert_eq!(parse_field("novalue").unwrap_err().exit_code(), 2);
-        assert_eq!(parse_field("a:={bad").unwrap_err().exit_code(), 2);
-        let err = build_body(None, &["a=1".into(), "a.b=2".into()]).unwrap_err();
-        assert_eq!(err.exit_code(), 2);
-        assert!(err.to_string().contains("non-object"), "{err}");
-    }
-
-    #[test]
-    fn data_and_field_conflict_and_inline_data_parses() {
-        assert_eq!(
-            build_body(Some("{}"), &["a=b".into()])
-                .unwrap_err()
-                .exit_code(),
-            2
-        );
-        assert_eq!(
-            build_body(Some(r#"{"a":1}"#), &[]).unwrap().unwrap()["a"],
-            1
-        );
-        assert_eq!(build_body(Some("nope"), &[]).unwrap_err().exit_code(), 2);
-        assert_eq!(
-            build_body(Some("@/definitely/missing.json"), &[])
-                .unwrap_err()
-                .exit_code(),
-            2
-        );
-        assert!(build_body(None, &[]).unwrap().is_none());
     }
 
     #[test]

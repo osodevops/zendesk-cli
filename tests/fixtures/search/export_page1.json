@@ -1,0 +1,9 @@
+{
+  "results": [
+    { "id": 1, "url": "https://example.zendesk.com/api/v2/tickets/1.json", "result_type": "ticket", "subject": "API latency on eu-west-1", "status": "open", "priority": "high", "requester_id": 43, "assignee_id": 42, "created_at": "2026-09-10T08:15:00Z", "updated_at": "2026-09-11T06:34:57Z" },
+    { "id": 2, "url": "https://example.zendesk.com/api/v2/tickets/2.json", "result_type": "ticket", "subject": "How do I export my data?", "status": "open", "priority": "normal", "requester_id": 43, "assignee_id": null, "created_at": "2026-09-09T12:00:00Z", "updated_at": "2026-09-09T12:00:00Z" }
+  ],
+  "facets": null,
+  "meta": { "has_more": true, "after_cursor": "export-cursor-2" },
+  "links": { "next": "https://example.zendesk.com/api/v2/search/export?filter%5Btype%5D=ticket&page%5Bsize%5D=100&page%5Bafter%5D=export-cursor-2&query=status%3Aopen", "prev": null }
+}

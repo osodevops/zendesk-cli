@@ -1,0 +1,52 @@
+{
+  "comments": [
+    {
+      "id": 9001,
+      "type": "Comment",
+      "author_id": 43,
+      "body": "Requests to the ticketing API take over 5 seconds.",
+      "html_body": "<div class=\"zd-comment\"><p>Requests to the ticketing API take over 5 seconds.</p></div>",
+      "plain_body": "Requests to the ticketing API take over 5 seconds.",
+      "public": true,
+      "attachments": [],
+      "audit_id": 70001,
+      "via": { "channel": "email", "source": { "from": { "address": "grace@example.com", "name": "Grace Hopper" }, "to": {}, "rel": null } },
+      "created_at": "2026-09-10T08:15:00Z",
+      "metadata": { "system": { "client": "Mail", "ip_address": "203.0.113.10" } }
+    },
+    {
+      "id": 9002,
+      "type": "Comment",
+      "author_id": 42,
+      "body": "Investigating with the platform team.",
+      "html_body": "<div class=\"zd-comment\"><p>Investigating with the platform team.</p></div>",
+      "plain_body": "Investigating with the platform team.",
+      "public": false,
+      "attachments": [],
+      "audit_id": 70002,
+      "via": { "channel": "web", "source": { "from": {}, "to": {}, "rel": null } },
+      "created_at": "2026-09-10T09:02:11Z",
+      "metadata": { "system": { "client": "Mozilla/5.0", "ip_address": "203.0.113.11" } }
+    },
+    {
+      "id": 9003,
+      "type": "Comment",
+      "author_id": 42,
+      "body": "We have identified a slow query and are rolling out a fix.",
+      "html_body": "<div class=\"zd-comment\"><p>We have identified a slow query and are rolling out a fix.</p></div>",
+      "plain_body": "We have identified a slow query and are rolling out a fix.",
+      "public": true,
+      "attachments": [],
+      "audit_id": 70003,
+      "via": { "channel": "web", "source": { "from": {}, "to": {}, "rel": null } },
+      "created_at": "2026-09-11T06:34:57Z",
+      "metadata": { "system": { "client": "Mozilla/5.0", "ip_address": "203.0.113.11" } }
+    }
+  ],
+  "users": [
+    { "id": 42, "name": "Ada Lovelace", "email": "ada@example.com", "role": "agent", "active": true },
+    { "id": 43, "name": "Grace Hopper", "email": "grace@example.com", "role": "end-user", "active": true }
+  ],
+  "meta": { "has_more": false, "after_cursor": null, "before_cursor": null },
+  "links": { "next": null, "prev": null }
+}

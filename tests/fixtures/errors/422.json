@@ -1,0 +1,12 @@
+{
+  "error": "RecordInvalid",
+  "description": "Record validation errors",
+  "details": {
+    "requester": [
+      { "description": "Requester: Name: is too short (minimum one character)", "error": "ValueTooShort" }
+    ],
+    "base": [
+      { "description": "Description: cannot be blank", "error": "BlankValue" }
+    ]
+  }
+}

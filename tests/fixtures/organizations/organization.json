@@ -1,0 +1,18 @@
+{
+  "organization": {
+    "id": 1001,
+    "url": "https://example.zendesk.com/api/v2/organizations/1001.json",
+    "external_id": "ACME-1",
+    "name": "Acme Corp",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-09-01T00:00:00Z",
+    "domain_names": ["acme.com", "acme.co.uk"],
+    "details": "Enterprise customer",
+    "notes": "",
+    "group_id": 501,
+    "shared_tickets": true,
+    "shared_comments": false,
+    "tags": ["enterprise", "emea"],
+    "organization_fields": { "region": "EMEA", "plan": "enterprise" }
+  }
+}

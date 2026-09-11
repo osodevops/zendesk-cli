@@ -1,0 +1,19 @@
+---
+source: crates/zdk-cli/tests/resources_cli.rs
+expression: text
+---
+#1  API latency on eu-west-1
+status: open   priority: high   type: incident
+requester: Grace Hopper <grace@example.com>   assignee: Ada Lovelace <ada@example.com>
+group: Platform Support   organization: Acme Corp
+tags: latency, eu-west-1
+created: 2026-09-10 08:15   updated: 2026-09-11 06:34
+
+#1  Grace Hopper  2026-09-10 08:15  [public]
+Requests to the ticketing API take over 5 seconds.
+
+#2  Ada Lovelace  2026-09-10 09:02  [internal]
+Investigating with the platform team.
+
+#3  Ada Lovelace  2026-09-11 06:34  [public]
+We have identified a slow query and are rolling out a fix.

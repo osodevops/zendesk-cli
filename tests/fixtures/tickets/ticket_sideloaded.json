@@ -1,0 +1,32 @@
+{
+  "ticket": {
+    "id": 1,
+    "url": "https://example.zendesk.com/api/v2/tickets/1.json",
+    "external_id": "ORDER-4471",
+    "via": { "channel": "email", "source": { "from": { "address": "grace@example.com", "name": "Grace Hopper" }, "to": { "address": "support@example.zendesk.com", "name": "Example Support" }, "rel": null } },
+    "created_at": "2026-09-10T08:15:00Z",
+    "updated_at": "2026-09-11T06:34:57Z",
+    "type": "incident",
+    "subject": "API latency on eu-west-1",
+    "raw_subject": "API latency on eu-west-1",
+    "description": "Requests to the ticketing API take over 5 seconds.",
+    "priority": "high",
+    "status": "open",
+    "requester_id": 43,
+    "submitter_id": 42,
+    "assignee_id": 42,
+    "organization_id": 1001,
+    "group_id": 501,
+    "tags": ["latency", "eu-west-1"],
+    "custom_fields": [{ "id": 360000001, "value": "production" }],
+    "satisfaction_rating": { "score": "unoffered" },
+    "ticket_form_id": 7001,
+    "brand_id": 9001
+  },
+  "users": [
+    { "id": 42, "name": "Ada Lovelace", "email": "ada@example.com", "role": "agent", "active": true },
+    { "id": 43, "name": "Grace Hopper", "email": "grace@example.com", "role": "end-user", "active": true, "organization_id": 1001 }
+  ],
+  "groups": [{ "id": 501, "name": "Platform Support" }],
+  "organizations": [{ "id": 1001, "name": "Acme Corp", "domain_names": ["acme.com"], "tags": ["enterprise"] }]
+}

@@ -1,0 +1,50 @@
+{
+  "tickets": [
+    {
+      "id": 1,
+      "url": "https://example.zendesk.com/api/v2/tickets/1.json",
+      "external_id": "ORDER-4471",
+      "via": { "channel": "email", "source": { "from": { "address": "grace@example.com", "name": "Grace Hopper" }, "to": {}, "rel": null } },
+      "created_at": "2026-09-10T08:15:00Z",
+      "updated_at": "2026-09-11T06:34:57Z",
+      "type": "incident",
+      "subject": "API latency on eu-west-1",
+      "priority": "high",
+      "status": "open",
+      "requester_id": 43,
+      "submitter_id": 42,
+      "assignee_id": 42,
+      "organization_id": 1001,
+      "group_id": 501,
+      "tags": ["latency", "eu-west-1"],
+      "custom_fields": [{ "id": 360000001, "value": "production" }],
+      "satisfaction_rating": { "score": "unoffered" },
+      "brand_id": 9001,
+      "ticket_form_id": 7001
+    },
+    {
+      "id": 2,
+      "url": "https://example.zendesk.com/api/v2/tickets/2.json",
+      "external_id": null,
+      "via": { "channel": "web", "source": { "from": {}, "to": {}, "rel": null } },
+      "created_at": "2026-09-09T12:00:00Z",
+      "updated_at": "2026-09-09T12:00:00Z",
+      "type": "question",
+      "subject": "How do I export my data?",
+      "priority": "normal",
+      "status": "new",
+      "requester_id": 43,
+      "submitter_id": 43,
+      "assignee_id": null,
+      "organization_id": 1001,
+      "group_id": null,
+      "tags": [],
+      "custom_fields": [],
+      "satisfaction_rating": { "score": "unoffered" },
+      "brand_id": 9001,
+      "ticket_form_id": 7001
+    }
+  ],
+  "meta": { "has_more": true, "after_cursor": "cursor-page-2", "before_cursor": null },
+  "links": { "next": "https://example.zendesk.com/api/v2/tickets?page%5Bsize%5D=100&page%5Bafter%5D=cursor-page-2", "prev": null }
+}

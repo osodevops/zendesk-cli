@@ -1,0 +1,11 @@
+{
+  "results": [
+    { "id": 1, "url": "https://example.zendesk.com/api/v2/tickets/1.json", "result_type": "ticket", "subject": "API latency on eu-west-1", "status": "open", "priority": "high", "created_at": "2026-09-10T08:15:00Z", "updated_at": "2026-09-11T06:34:57Z" },
+    { "id": 42, "url": "https://example.zendesk.com/api/v2/users/42.json", "result_type": "user", "name": "Ada Lovelace", "email": "ada@example.com", "role": "agent", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z" },
+    { "id": 1001, "url": "https://example.zendesk.com/api/v2/organizations/1001.json", "result_type": "organization", "name": "Acme Corp", "domain_names": ["acme.com"], "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z" }
+  ],
+  "facets": null,
+  "next_page": null,
+  "previous_page": null,
+  "count": 3
+}

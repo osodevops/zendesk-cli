@@ -5,6 +5,7 @@
 //! JSON line in machine modes); the exit code is `ZdkError::exit_code()` (PRD §14.3);
 //! ctrl-c exits 130 with nothing on stdout; a closed stdout pipe exits 0.
 
+mod args;
 mod cli;
 mod cmd;
 mod context;

@@ -12,6 +12,7 @@ pub mod ndjson;
 pub mod progress;
 pub mod project;
 pub mod raw;
+pub mod sideload;
 pub mod table;
 pub mod yaml;
 
