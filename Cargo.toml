@@ -4,7 +4,7 @@ members = ["crates/zdk-core", "crates/zdk-cli", "xtask"]
 default-members = ["crates/zdk-core", "crates/zdk-cli"]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
@@ -15,7 +15,7 @@ keywords = ["zendesk", "cli", "oauth", "support", "ai-agent"]
 categories = ["command-line-utilities"]
 
 [workspace.dependencies]
-zdk-core = { path = "crates/zdk-core", version = "0.0.0" }
+zdk-core = { path = "crates/zdk-core" }   # add `version` when publishing to crates.io
 
 # CLI
 clap = { version = "4.6", features = ["derive", "env", "string", "wrap_help"] }
