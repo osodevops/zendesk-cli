@@ -1,0 +1,330 @@
+name: Release
+run-name: Release ${{ inputs.tag || github.ref_name }}
+
+# Triggered by the `vX.Y.Z` tag that auto-tag.yml pushes. `workflow_dispatch` re-publishes an
+# EXISTING tag (re-run after a downstream failure); it never creates a release from scratch.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  BIN_NAME: zdk
+  ZENDESK_CREDENTIAL_STORE: none
+
+jobs:
+  pre-release-gate:
+    name: Pre-release Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - name: Verify release ref
+        run: |
+          [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]] || { echo "::error::need a semver tag like v0.1.0; got ${RELEASE_TAG}"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - name: Tag matches Cargo.toml version and CHANGELOG
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib;print(tomllib.load(open("Cargo.toml","rb"))["workspace"]["package"]["version"])')"
+          [[ "v${version}" == "${RELEASE_TAG}" ]] || { echo "::error::Cargo.toml is ${version} but tag is ${RELEASE_TAG}"; exit 1; }
+          grep -Eq "^## \[${version}\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## [${version}]' section"; exit 1; }
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: release-gate
+      - uses: taiki-e/install-action@fa23953489c080190314742a9b907f8e97c6767c # v2.87.10
+        with:
+          tool: cargo-audit
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --workspace --all-targets --locked
+      - run: cargo audit --deny warnings
+      - name: Build host binary; generate man pages and completions (shared by every matrix job)
+        run: |
+          set -euo pipefail
+          cargo build --release -p zendesk-cli --locked
+          bin="target/release/${BIN_NAME}"
+          "$bin" --version | grep -F "${RELEASE_TAG#v}"
+          mkdir -p dist/docs/man1 dist/docs/completions
+          "$bin" man --to dist/docs/man1
+          test -s "dist/docs/man1/${BIN_NAME}.1"
+          "$bin" completions bash       > "dist/docs/completions/${BIN_NAME}.bash"
+          "$bin" completions zsh        > "dist/docs/completions/_${BIN_NAME}"
+          "$bin" completions fish       > "dist/docs/completions/${BIN_NAME}.fish"
+          "$bin" completions powershell > "dist/docs/completions/_${BIN_NAME}.ps1"
+          "$bin" completions elvish     > "dist/docs/completions/${BIN_NAME}.elv"
+          if find dist/docs -type f -empty | grep -q .; then
+            echo "::error::empty doc file generated"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-docs
+          path: dist/docs
+          if-no-files-found: error
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: pre-release-gate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # Runner labels are explicit (no `-latest`): check GitHub's deprecation notices quarterly.
+        # macos-14 retires 2 Nov 2026; macos-15-intel is the only native Intel image.
+        include:
+          - { target: aarch64-apple-darwin,       runner: macos-15,         archive: tar.gz, musl: false, no_smoke: false }
+          - { target: x86_64-apple-darwin,        runner: macos-15-intel,   archive: tar.gz, musl: false, no_smoke: false }
+          - { target: x86_64-unknown-linux-musl,  runner: ubuntu-24.04,     archive: tar.gz, musl: true,  no_smoke: false }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04-arm, archive: tar.gz, musl: true,  no_smoke: false }
+          - { target: x86_64-unknown-linux-gnu,   runner: ubuntu-22.04,     archive: tar.gz, musl: false, no_smoke: false }
+          - { target: x86_64-pc-windows-msvc,     runner: windows-2025,     archive: zip,    musl: false, no_smoke: false }
+          - { target: aarch64-pc-windows-msvc,    runner: windows-11-arm,   archive: zip,    musl: false, no_smoke: false }
+          # Fallback if windows-11-arm lacks rustup/VS components: cross-compile on x64 and skip the smoke run.
+          # - { target: aarch64-pc-windows-msvc,  runner: windows-2025,     archive: zip,    musl: false, no_smoke: true }
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET: ${{ matrix.target }}
+      ARCHIVE: ${{ matrix.archive }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: release-${{ matrix.target }}
+      - name: Install musl toolchain
+        if: matrix.musl
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools
+          echo "CC_${TARGET}=musl-gcc" | tr '-' '_' >> "$GITHUB_ENV"
+      - name: Build
+        run: cargo build --release --locked -p zendesk-cli --target "${TARGET}"
+      - name: Verify musl binary is static
+        if: matrix.musl
+        run: |
+          set -euo pipefail
+          bin="target/${TARGET}/release/${BIN_NAME}"
+          file "$bin"
+          file "$bin" | grep -Eq 'statically linked|static-pie linked' || { echo "::error::${bin} is not statically linked"; exit 1; }
+      - name: Smoke test
+        if: ${{ !matrix.no_smoke }}
+        run: |
+          set -euo pipefail
+          bin="target/${TARGET}/release/${BIN_NAME}"
+          [[ "${RUNNER_OS}" == "Windows" ]] && bin="${bin}.exe"
+          "$bin" --version | grep -F "${RELEASE_TAG#v}"
+          "$bin" --help > /dev/null
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-docs
+          path: dist/docs
+      - name: Package
+        run: |
+          set -euo pipefail
+          bin="target/${TARGET}/release/${BIN_NAME}"
+          [[ "${RUNNER_OS}" == "Windows" ]] && bin="${bin}.exe"
+          bash scripts/package.sh --tag "${RELEASE_TAG}" --target "${TARGET}" --bin "$bin" --docs dist/docs --out dist --format "${ARCHIVE}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ env.BIN_NAME }}-${{ matrix.target }}
+          path: dist/${{ env.BIN_NAME }}-${{ env.RELEASE_TAG }}-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: ${{ env.BIN_NAME }}-*
+          path: artifacts
+          merge-multiple: true
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd artifacts
+          archives=( "${BIN_NAME}"-* )
+          test "${#archives[@]}" -eq 7 || { echo "::error::expected 7 archives, found ${#archives[@]}: ${archives[*]}"; exit 1; }
+          sha256sum "${archives[@]}" > checksums-sha256.txt
+          cat checksums-sha256.txt
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/${{ env.BIN_NAME }}-*.tar.gz
+            artifacts/${{ env.BIN_NAME }}-*.zip
+            artifacts/checksums-sha256.txt
+      - name: Self-verify attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for f in artifacts/"${BIN_NAME}"-* artifacts/checksums-sha256.txt; do
+            gh attestation verify "$f" --repo "${GITHUB_REPOSITORY}" --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/release.yml"
+          done
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          awk -v v="$version" '$0 ~ "^## \\[" v "\\]" { found=1; next } /^## \[/ { if (found) exit } found { print }' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "::warning::No CHANGELOG section for ${version}"
+            printf 'See generated notes below.\n' > release_notes.md
+          fi
+          cat >> release_notes.md <<'NOTES'
+
+          ### Verify downloads
+
+          ```sh
+          gh attestation verify <file> --owner osodevops
+          sha256sum -c --ignore-missing checksums-sha256.txt
+          ```
+          NOTES
+      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: release_notes.md
+          generate_release_notes: true
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/${{ env.BIN_NAME }}-*
+            artifacts/checksums-sha256.txt
+
+  homebrew:
+    name: Update Homebrew Tap
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions: {}
+    steps:
+      - uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: osodevops/homebrew-tap
+          event-type: update-formula
+          client-payload: '{"formula": "zendesk-cli", "tag": "${{ env.RELEASE_TAG }}", "repo": "${{ github.repository }}"}'
+      - name: Verify the tap published the new formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          checksums_file="$(mktemp)"
+          trap 'rm -f "$checksums_file"' EXIT
+          curl --fail -sSL --retry 5 --retry-all-errors \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/checksums-sha256.txt" -o "$checksums_file"
+          targets=(aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-musl x86_64-unknown-linux-musl)
+          for attempt in $(seq 1 30); do
+            formula="$(curl --fail -sS -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.raw+json" \
+              "https://api.github.com/repos/osodevops/homebrew-tap/contents/Formula/zendesk-cli.rb?ref=main")" || formula=""
+            ok=true
+            for t in "${targets[@]}"; do
+              asset="${BIN_NAME}-${RELEASE_TAG}-${t}.tar.gz"
+              sum="$(awk -v a="$asset" '$2 == a { print $1 }' "$checksums_file")"
+              [[ "$sum" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::no SHA-256 for ${asset} in checksums-sha256.txt"; exit 1; }
+              if ! grep -Fq "releases/download/${RELEASE_TAG}/${asset}" <<<"$formula" || ! grep -Fq "sha256 \"${sum}\"" <<<"$formula"; then
+                ok=false
+                break
+              fi
+            done
+            if [[ "$ok" == true ]]; then
+              echo "Homebrew formula publishes ${RELEASE_TAG}"
+              exit 0
+            fi
+            echo "Waiting for osodevops/homebrew-tap (${attempt}/30)"
+            sleep 10
+          done
+          echo "::error::Tap did not publish ${RELEASE_TAG}. Re-run: gh workflow run update-zendesk-cli-formula.yml -R osodevops/homebrew-tap -f tag=${RELEASE_TAG}; then re-run this job."
+          exit 1
+
+  scoop:
+    name: Update Scoop Bucket
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions: {}
+    steps:
+      - uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          repository: osodevops/scoop-bucket
+          event-type: update-zdk-manifest
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}", "tag": "${{ env.RELEASE_TAG }}"}'
+      - name: Verify the bucket published the new manifest
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          expected="$(curl --fail -sSL --retry 5 --retry-all-errors "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/checksums-sha256.txt" \
+            | awk -v a="${BIN_NAME}-${RELEASE_TAG}-x86_64-pc-windows-msvc.zip" '$2 == a { print $1 }')"
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::no SHA-256 for the Windows x64 zip in checksums-sha256.txt"; exit 1; }
+          for attempt in $(seq 1 30); do
+            manifest="$(curl --fail -sS -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.raw+json" \
+              "https://api.github.com/repos/osodevops/scoop-bucket/contents/bucket/zdk.json?ref=main")" || manifest=""
+            if jq -e --arg v "$version" --arg h "$expected" '.version == $v and .architecture["64bit"].hash == $h' <<<"$manifest" >/dev/null 2>&1; then
+              echo "Scoop manifest publishes ${version}"
+              exit 0
+            fi
+            echo "Waiting for osodevops/scoop-bucket (${attempt}/30)"
+            sleep 10
+          done
+          echo "::error::Bucket did not publish ${RELEASE_TAG}. Re-run: gh workflow run update-manifest.yml -R osodevops/scoop-bucket -f tag=${RELEASE_TAG} -f product=zdk; then re-run this job."
+          exit 1
+
+  release-complete:
+    name: Release Complete
+    runs-on: ubuntu-24.04
+    needs: [pre-release-gate, build, release, homebrew, scoop]
+    if: always()
+    steps:
+      - name: Every release job succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e '[.[] | .result] | all(. == "success")' > /dev/null || { echo "One or more release jobs failed"; exit 1; }

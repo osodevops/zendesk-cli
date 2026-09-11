@@ -1,0 +1,184 @@
+# OAuth scope inference for `cargo xtask codegen`.
+#
+# Every operation's first tag maps to a scope *family*. GET operations get `<family>:read`,
+# every other method `<family>:write`. `global` means the legacy account-wide `read` / `write`
+# scopes. A family with `write = false` only has a granular read scope; its writes fall back to
+# the global `write` scope. Tags that are missing here produce `scope: None` plus a codegen
+# warning (the xtask test suite requires every tag of the committed specs to be mapped).
+#
+# Zendesk's 52 granular scopes (Admin Center > Apps and integrations > APIs > OAuth clients):
+# account_settings, apps, auditlogs (read), automations, brands, custom_objects (read),
+# deletion_schedules, dynamic_content, groups, hc, macros, organizations, requests,
+# satisfaction_ratings, security (read), sla_policies, targets, themes, ticket_attachments,
+# ticket_views, tickets, triggers, users, webhooks, zis — plus the legacy read / write / impersonate.
+
+[families]
+account_settings = { read = true, write = true }
+apps = { read = true, write = true }
+auditlogs = { read = true, write = false }
+automations = { read = true, write = true }
+brands = { read = true, write = true }
+custom_objects = { read = true, write = false }
+deletion_schedules = { read = true, write = true }
+dynamic_content = { read = true, write = true }
+groups = { read = true, write = true }
+hc = { read = true, write = true }
+macros = { read = true, write = true }
+organizations = { read = true, write = true }
+requests = { read = true, write = true }
+satisfaction_ratings = { read = true, write = true }
+security = { read = true, write = false }
+sla_policies = { read = true, write = true }
+targets = { read = true, write = true }
+themes = { read = true, write = true }
+ticket_attachments = { read = true, write = true }
+ticket_views = { read = true, write = true }
+tickets = { read = true, write = true }
+triggers = { read = true, write = true }
+users = { read = true, write = true }
+webhooks = { read = true, write = true }
+zis = { read = true, write = true }
+
+# Operations whose tag maps to `global` but whose path sits under a resource with a granular
+# family (e.g. the `Tags` and `Incremental Export` tags span tickets, users and organizations).
+# Longest matching prefix wins; only consulted when the tag maps to `global`.
+[path_prefixes]
+"/api/v2/tickets/" = "tickets"
+"/api/v2/incremental/tickets" = "tickets"
+"/api/v2/incremental/ticket_events" = "tickets"
+"/api/v2/users/" = "users"
+"/api/v2/incremental/users" = "users"
+"/api/v2/organizations/" = "organizations"
+"/api/v2/incremental/organizations" = "organizations"
+
+[tags]
+# ---- support.yaml ----
+"API Tokens" = "global"
+"Account Settings" = "account_settings"
+"Activity Stream" = "global"
+"Approval Requests" = "global"
+"Attachments" = "ticket_attachments"
+"Audit Logs" = "auditlogs"
+"Automations" = "automations"
+"Basics" = "global"
+"Bookmarks" = "global"
+"Brand Agents" = "brands"
+"Brands" = "brands"
+"Channel Framework" = "global"
+"Conversation Log" = "tickets"
+"Countries" = "global"
+"Custom Object Fields" = "custom_objects"
+"Custom Object Permissions" = "custom_objects"
+"Custom Object Record Attachments" = "custom_objects"
+"Custom Object Records" = "custom_objects"
+"Custom Objects" = "custom_objects"
+"Custom Roles" = "global"
+"Custom Ticket Statuses" = "global"
+"Deletion Schedules" = "deletion_schedules"
+"Dynamic Content" = "dynamic_content"
+"Dynamic Content Item Variants" = "dynamic_content"
+"Email Notifications" = "tickets"
+"Global Clients" = "global"
+"Grant Type Tokens" = "global"
+"Group Memberships" = "groups"
+"Group SLA Policies" = "sla_policies"
+"Groups" = "groups"
+"ITAM Asset Fields" = "global"
+"ITAM Asset Locations" = "global"
+"ITAM Asset Statuses" = "global"
+"ITAM Asset Types" = "global"
+"ITAM Assets" = "global"
+"Incremental Export" = "global"
+"Incremental Skill Based Routing" = "global"
+"Job Statuses" = "global"
+"Locales" = "global"
+"Lookup Relationships" = "global"
+"Macros" = "macros"
+"OAuth Clients" = "global"
+"OAuth Tokens" = "global"
+"Object Triggers" = "triggers"
+"Omnichannel Routing Queues" = "global"
+"Organization Fields" = "organizations"
+"Organization Memberships" = "organizations"
+"Organization Subscriptions" = "organizations"
+"Organizations" = "organizations"
+"Push Notification Devices" = "global"
+"Remote Authentications" = "security"
+"Requests" = "requests"
+"Reseller" = "global"
+"Resource Collections" = "global"
+"SLA Policies" = "sla_policies"
+"Satisfaction Ratings" = "satisfaction_ratings"
+"Satisfaction Reasons" = "satisfaction_ratings"
+"Saved Searches" = "global"
+"Search" = "global"
+"Security Settings" = "security"
+"Sessions" = "global"
+"Sharing Agreements" = "global"
+"Skill Based Routing" = "global"
+"Support Addresses" = "global"
+"Suspended Tickets" = "tickets"
+"Tags" = "global"
+"Target Failures" = "targets"
+"Targets" = "targets"
+"Task List Templates" = "global"
+"Task Lists" = "global"
+"Ticket Audits" = "tickets"
+"Ticket Comments" = "tickets"
+"Ticket Content Pins" = "tickets"
+"Ticket Fields" = "tickets"
+"Ticket Form Statuses" = "tickets"
+"Ticket Forms" = "tickets"
+"Ticket Import" = "tickets"
+"Ticket Metric Events" = "tickets"
+"Ticket Metrics" = "tickets"
+"Ticket Skips" = "tickets"
+"Tickets" = "tickets"
+"Trigger Categories" = "triggers"
+"Triggers" = "triggers"
+"User Fields" = "users"
+"User Identities" = "users"
+"User Passwords" = "users"
+"Users" = "users"
+"Views" = "ticket_views"
+"Workspaces" = "global"
+"X Channel" = "global"
+
+# ---- help_center.yaml ----
+"Article Attachments" = "hc"
+"Article Comments" = "hc"
+"Article Labels" = "hc"
+"Articles" = "hc"
+"Categories" = "hc"
+"Content Subscriptions" = "hc"
+"Help Center Search" = "hc"
+"Help Center Sessions" = "hc"
+"Post Comments" = "hc"
+"Posts" = "hc"
+"Sections" = "hc"
+"Service Catalog Items" = "hc"
+"Topics" = "hc"
+"Translations" = "hc"
+"User Images" = "hc"
+"User Segments" = "hc"
+"User Subscriptions" = "hc"
+"Votes" = "hc"
+
+# ---- voice.yaml (Talk has no granular scopes) ----
+"Addresses" = "global"
+"Availabilities" = "global"
+"Call Console" = "global"
+"Callback Requests" = "global"
+"Calls" = "global"
+"Dashboard" = "global"
+"Digital lines" = "global"
+"Greetings" = "global"
+"IVR Menus" = "global"
+"IVR Routes" = "global"
+"IVRs" = "global"
+"Incremental Exports" = "global"
+"Lines" = "global"
+"Phone numbers" = "global"
+"Recordings" = "global"
+"Stats" = "global"
+"Voice Settings" = "global"

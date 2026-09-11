@@ -1,0 +1,46 @@
+name: Command request
+description: Propose a new zdk command, flag, output field, or workflow
+title: "command: "
+labels:
+  - enhancement
+  - command
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow
+      description: What are you trying to automate or make easier?
+      placeholder: As a support lead, I need to...
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_command
+    attributes:
+      label: Proposed CLI shape
+      description: Show the command, flags, and expected output mode.
+      render: bash
+      placeholder: zdk tickets bulk-update --from ids.txt --status solved --dry-run -o json
+    validations:
+      required: true
+  - type: textarea
+    id: zendesk_api
+    attributes:
+      label: Zendesk API surface
+      description: If known, list the Zendesk REST endpoints and the OAuth scopes involved. `zdk api ops --grep <name>` shows what the operation registry already knows.
+      placeholder: PUT /api/v2/tickets/update_many (tickets:write)
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected structured output
+      description: Include JSON fields if this command will be used by agents or CI.
+      render: json
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      options:
+        - label: The command should support `--dry-run` if it mutates Zendesk data.
+        - label: Destructive variants should require `--yes` and name the active profile.
+        - label: The command should work with `-o json` and stream with `-o ndjson` where it lists.
+        - label: The command should map to a granular OAuth scope so `zdk auth scopes check` can preflight it.
+        - label: The command should update README examples, tests, and snapshots.

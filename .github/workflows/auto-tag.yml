@@ -1,0 +1,65 @@
+name: Auto Tag
+
+# A release is driven by a version bump: when `[workspace.package] version` in the
+# root Cargo.toml changes on main, this workflow pushes the matching `vX.Y.Z` tag,
+# which triggers release.yml. The tag is pushed with a PAT because a tag pushed
+# with GITHUB_TOKEN would not trigger any workflow.
+on:
+  push:
+    branches: [main]
+    paths: [Cargo.toml] # root only; members use `version.workspace = true`
+
+permissions:
+  contents: read # the push uses the PAT, not GITHUB_TOKEN
+
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag release version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Detect and validate version bump
+        shell: bash
+        env:
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          BASE_REF="${PUSH_BEFORE_SHA}"
+          if [[ "${BASE_REF}" =~ ^0+$ ]]; then
+            BASE_REF="$(git rev-list --max-parents=0 HEAD | head -n1)"
+          fi
+          # Writes BASE_VERSION / HEAD_VERSION / RELEASE_TAG / VERSION_CHANGED to $GITHUB_ENV.
+          python3 scripts/check-release-version.py --base-ref "${BASE_REF}" --mode tagger --event-name "${GITHUB_EVENT_NAME}"
+
+      - name: Check whether the tag already exists
+        if: env.VERSION_CHANGED == 'true'
+        id: tag-check
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push annotated tag
+        if: env.VERSION_CHANGED == 'true' && steps.tag-check.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }} # PAT: a GITHUB_TOKEN push would not trigger release.yml
+        run: |
+          set -euo pipefail
+          test -n "${GITHUB_TOKEN}" || { echo "::error::HOMEBREW_TAP_TOKEN is not available to this repository"; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${RELEASE_TAG}"

@@ -1,0 +1,12 @@
+# Per-operation corrections applied after inference by `cargo xtask codegen`.
+#
+# Keys are `<spec>.<operationId>` (spec = support | help_center | voice). Any of the three
+# fields may be set; an empty string clears `items_key` / `scope`. Codegen fails on keys that
+# do not name a real operation, so stale entries surface after `cargo xtask spec-refresh`.
+#
+#   ["support.ListTickets"]
+#   items_key = "tickets"       # array property of the 200 response holding the records
+#   pagination = "dual"         # none | cursor | offset | dual | incremental | audits
+#   scope = "tickets:read"      # OAuth scope the preflight checks for
+#
+# Keep this file small: fix the inference rules or xtask/scope_map.toml first.

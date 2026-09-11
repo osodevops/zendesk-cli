@@ -1,0 +1,86 @@
+name: Spec Refresh
+
+# Weekly: re-download the Zendesk OpenAPI snapshots listed in specs/SPEC_VERSIONS.toml,
+# regenerate the operation registry, and open a PR when anything drifted.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-refresh
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  ZENDESK_CREDENTIAL_STORE: none
+
+jobs:
+  refresh:
+    name: Refresh OpenAPI snapshots
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: spec-refresh
+
+      - name: Download upstream specs
+        run: cargo xtask spec-refresh
+
+      - name: Detect drift
+        id: diff
+        run: |
+          set -uo pipefail
+          summary="$RUNNER_TEMP/spec-diff.md"
+          {
+            echo "Automated refresh of the Zendesk OpenAPI snapshots in \`specs/\` (see \`specs/SPEC_VERSIONS.toml\`)."
+            echo
+            echo '```'
+          } > "$summary"
+          cargo xtask spec-diff >> "$summary" 2>&1
+          rc=$?
+          echo '```' >> "$summary"
+          case "$rc" in
+            0) echo "changed=false" >> "$GITHUB_OUTPUT"; echo "Upstream specs are unchanged." ;;
+            1) echo "changed=true" >> "$GITHUB_OUTPUT"; cat "$summary" ;;
+            *) echo "::error::cargo xtask spec-diff exited with ${rc}"; cat "$summary"; exit "$rc" ;;
+          esac
+
+      - name: Regenerate registry and verify the workspace still builds
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          cargo xtask codegen
+          cargo fmt --all
+          cargo check --workspace --all-targets
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          # PAT so the PR triggers ci.yml (a GITHUB_TOKEN-created PR does not).
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          branch: chore/spec-refresh
+          delete-branch: true
+          title: "chore(specs): refresh Zendesk OpenAPI snapshots"
+          commit-message: "chore(specs): refresh Zendesk OpenAPI snapshots"
+          labels: dependencies,specs
+          body-path: ${{ runner.temp }}/spec-diff.md
+          add-paths: |
+            specs/
+            crates/zdk-core/src/api/generated/

@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a bug or unexpected behavior in zdk
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue. **Never paste access tokens, refresh tokens, authorization codes, client secrets, API tokens, or ticket/customer contents.** Redact your subdomain if you prefer. `-vvv` output already redacts secrets, but check it before pasting.
+
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: A clear description of what went wrong.
+      placeholder: Describe the issue step by step.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact command shape where possible, with sensitive values replaced by placeholders.
+      placeholder: |
+        1. Run `zdk tickets list --status open -o json`
+        2. Pipe into `jq`
+        3. See error / exit code
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Error output
+      description: Paste sanitized stderr/stdout and the exit code (`echo $?`). Remove tokens, secrets, and ticket or customer content.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Environment
+      value: |
+        - zdk version (`zdk --version`):
+        - Install method: [Homebrew / Scoop / GitHub release archive / cargo install / source]
+        - OS and architecture:
+        - Shell:
+        - Auth method: [oauth-pkce / client-credentials / api-token]
+        - Credential store (`zdk auth status`): [keyring / file / env / none]
+        - Output mode: [table / json / ndjson / csv / tsv / yaml / raw]
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Add any other sanitized context that may help, such as the `X-Request-Id` from the error line or the rate-limit headers you observed.
+    validations:
+      required: false

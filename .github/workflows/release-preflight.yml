@@ -1,0 +1,73 @@
+name: Release Preflight
+
+# Proves the release pipeline's downstream wiring before a version bump is merged:
+# the PATs exist and can write where they must, and the tap/bucket are ready for `zdk`.
+# Safe to run any time; it publishes nothing (the `preflight-ping` dispatches match no workflow).
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  preflight:
+    name: Secrets and downstream repositories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Secrets are present
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${HOMEBREW_TAP_TOKEN}" || { echo "::error::HOMEBREW_TAP_TOKEN is empty or not visible to this repository"; exit 1; }
+          test -n "${SCOOP_BUCKET_TOKEN}" || { echo "::error::SCOOP_BUCKET_TOKEN is empty or not visible to this repository"; exit 1; }
+          echo "Both secrets are present."
+
+      - name: HOMEBREW_TAP_TOKEN can push tags to this repository
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          login="$(gh api user --jq .login)"
+          echo "PAT identity: ${login}"
+          permission="$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${login}/permission" --jq .permission)"
+          echo "Permission on ${GITHUB_REPOSITORY}: ${permission}"
+          case "$permission" in
+            admin|write|maintain) ;;
+            *) echo "::error::${login} needs write access to ${GITHUB_REPOSITORY} to push release tags (has: ${permission})"; exit 1 ;;
+          esac
+
+      - name: HOMEBREW_TAP_TOKEN can dispatch to osodevops/homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 204 proves write access; the event type matches no workflow, so nothing runs.
+          gh api -X POST repos/osodevops/homebrew-tap/dispatches -f event_type=preflight-ping
+          echo "Dispatch to osodevops/homebrew-tap accepted."
+
+      - name: Tap has the zendesk-cli formula, updater workflow and script
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          for path in Formula/zendesk-cli.rb .github/workflows/update-zendesk-cli-formula.yml scripts/update-zendesk-cli-formula.rb; do
+            sha="$(gh api "repos/osodevops/homebrew-tap/contents/${path}?ref=main" --jq .sha)" || { echo "::error::osodevops/homebrew-tap is missing ${path} on main"; exit 1; }
+            echo "${path}: ${sha}"
+          done
+          workflow="$(gh api "repos/osodevops/homebrew-tap/contents/.github/workflows/update-zendesk-cli-formula.yml?ref=main" -H "Accept: application/vnd.github.raw+json")"
+          grep -Fq "update-formula" <<<"$workflow" || { echo "::error::tap workflow does not listen for the update-formula dispatch"; exit 1; }
+          grep -Fq "osodevops/zendesk-cli" <<<"$workflow" || { echo "::error::tap workflow does not filter on osodevops/zendesk-cli"; exit 1; }
+
+      - name: SCOOP_BUCKET_TOKEN can dispatch to osodevops/scoop-bucket and the zdk job exists
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api -X POST repos/osodevops/scoop-bucket/dispatches -f event_type=preflight-ping
+          echo "Dispatch to osodevops/scoop-bucket accepted."
+          workflow="$(gh api "repos/osodevops/scoop-bucket/contents/.github/workflows/update-manifest.yml?ref=main" -H "Accept: application/vnd.github.raw+json")"
+          grep -Fq "update-zdk-manifest" <<<"$workflow" || { echo "::error::scoop-bucket update-manifest.yml has no update-zdk-manifest dispatch type"; exit 1; }
+          grep -Fq "bucket/zdk.json" <<<"$workflow" || { echo "::error::scoop-bucket update-manifest.yml does not write bucket/zdk.json"; exit 1; }
+          echo "Scoop bucket is wired for zdk."

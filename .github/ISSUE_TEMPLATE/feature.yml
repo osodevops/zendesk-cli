@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Please describe the workflow and the Zendesk API behavior you need. For a new command or flag, prefer the "Command request" template.
+
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What problem are you trying to solve?
+      placeholder: Agents or automation need to...
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Proposed solution
+      description: What should zdk do?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Use case
+      description: Who would use this and in what workflow?
+      placeholder: Support triage automation, ticket export pipelines, incident response, CI-driven reporting...
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Zendesk API reference
+      description: Link to the relevant Zendesk developer documentation if known (Support, Help Center, or Talk API).
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+      description: Any workaround, `zdk api` escape-hatch call, SDK, or other CLI alternative you have considered.
+    validations:
+      required: false

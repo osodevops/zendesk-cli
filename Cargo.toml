@@ -1,0 +1,119 @@
+[workspace]
+resolver = "3"
+members = ["crates/zdk-core", "crates/zdk-cli", "xtask"]
+default-members = ["crates/zdk-core", "crates/zdk-cli"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+authors = ["OSO DevOps"]
+repository = "https://github.com/osodevops/zendesk-cli"
+homepage = "https://github.com/osodevops/zendesk-cli"
+keywords = ["zendesk", "cli", "oauth", "support", "ai-agent"]
+categories = ["command-line-utilities"]
+
+[workspace.dependencies]
+zdk-core = { path = "crates/zdk-core", version = "0.0.0" }
+
+# CLI
+clap = { version = "4.6", features = ["derive", "env", "string", "wrap_help"] }
+clap_complete = "4.6"
+clap_mangen = "0.3"
+
+# async + http
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "time", "signal", "io-std", "fs", "process"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+# ring provider everywhere: one TLS code path on all 7 targets (aws-lc-rs needs cmake/NASM on cross targets)
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "gzip", "stream", "multipart", "http2", "charset", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+http = "1"
+url = "2.5"
+bytes = "1"
+futures-util = "0.3"
+async-trait = "0.1"
+
+# auth / crypto
+sha2 = "0.10"
+base64 = "0.23"
+getrandom = "0.3"
+tiny_http = "0.12"
+open = "5.4"
+secrecy = { version = "0.10", features = ["serde"] }
+zeroize = "1"
+keyring = { version = "4.2", default-features = false, features = ["v1"] }
+chacha20poly1305 = "0.11"
+argon2 = "0.6"
+
+# rate limiting / retry
+governor = "0.10"
+arc-swap = "1"
+rand = "0.10"
+
+# serialisation / config
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_yaml_ng = "0.10"
+toml = "1.1"
+toml_edit = "0.25"
+csv = "1.4"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+humantime = "2.4"
+uuid = { version = "1.26", features = ["v4"] }
+dirs = "7"
+
+# output / diagnostics
+comfy-table = "8"
+indicatif = "0.18"
+jaq-core = "3.1"
+jaq-std = "3.0"
+jaq-json = { version = "2.0", features = ["serde"] }
+miette = { version = "7.6", features = ["fancy"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+regex = "1"
+flate2 = "1"
+
+# xtask
+anyhow = "1"
+similar = "3"
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
+
+# dev
+wiremock = "0.6"
+assert_cmd = "2.2"
+predicates = "3"
+insta = { version = "1.48", features = ["json", "redactions"] }
+proptest = "1.11"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"   # stdout only via output::write_stdout
+print_stderr = "warn"   # stderr only via output::warn / tracing
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+too_many_lines = "allow"
+struct_excessive_bools = "allow"
+doc_markdown = "allow"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+debug = false
+incremental = false
+panic = "unwind"   # completions/man run on a 16 MiB thread; a panic must surface as exit 1, not SIGABRT

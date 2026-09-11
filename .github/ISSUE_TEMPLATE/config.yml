@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/osodevops/zendesk-cli#readme
+    about: Read the README, `zdk --help`, and the man pages before opening an issue.
+  - name: Zendesk API token deprecation
+    url: https://github.com/osodevops/zendesk-cli/blob/main/docs/oauth-migration.md
+    about: API tokens stop being issued on 27 Oct 2026 and stop working on 30 Apr 2027. Read the migration notes first.
+  - name: Security vulnerability
+    url: https://github.com/osodevops/zendesk-cli/security/policy
+    about: Report security issues privately through the security policy.

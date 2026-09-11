@@ -1,0 +1,19 @@
+[files]
+extend-exclude = [
+  "specs/",
+  "crates/zdk-core/src/api/generated/",
+  "tests/fixtures/",
+  "Cargo.lock",
+  "docs/zendesk-cli-prd.md",
+]
+
+[default]
+extend-ignore-re = [
+  # SHA-1 / SHA-256 digests (action pins, checksums)
+  "[0-9a-f]{40,64}",
+  # Zendesk subdomains in examples
+  "(?i)[a-z0-9-]+\\.zendesk\\.com",
+]
+
+[default.extend-words]
+sideload = "sideload"

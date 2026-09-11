@@ -1,0 +1,58 @@
+name: E2E
+
+# Live tests against a real Zendesk instance (client-credentials OAuth). Runs only when the
+# three ZDK_E2E_* secrets are configured; otherwise every step is skipped and the job is green.
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  ZENDESK_CREDENTIAL_STORE: none
+
+jobs:
+  e2e:
+    name: Live Zendesk E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ZDK_E2E_SUBDOMAIN: ${{ secrets.ZDK_E2E_SUBDOMAIN }}
+      ZDK_E2E_CLIENT_ID: ${{ secrets.ZDK_E2E_CLIENT_ID }}
+      ZDK_E2E_CLIENT_SECRET: ${{ secrets.ZDK_E2E_CLIENT_SECRET }}
+    steps:
+      - name: Gate on E2E secrets
+        id: gate
+        run: |
+          set -euo pipefail
+          if [[ -z "${ZDK_E2E_SUBDOMAIN}" || -z "${ZDK_E2E_CLIENT_ID}" || -z "${ZDK_E2E_CLIENT_SECRET}" ]]; then
+            echo "::notice::ZDK_E2E_SUBDOMAIN / ZDK_E2E_CLIENT_ID / ZDK_E2E_CLIENT_SECRET are not all configured; skipping live tests."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.run == 'true'
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        if: steps.gate.outputs.run == 'true'
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: steps.gate.outputs.run == 'true'
+        with:
+          key: e2e
+
+      - name: Run live E2E suite (serially; the suite creates and deletes real records)
+        if: steps.gate.outputs.run == 'true'
+        run: cargo test -p zendesk-cli --test e2e --locked -- --test-threads 1

@@ -1,0 +1,29 @@
+/target
+/dist
+
+# Coverage and snapshot scratch
+*.profraw
+*.profdata
+lcov.info
+*.snap.new
+*.pending-snap
+
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.der
+credentials.*
+tokens.enc
+
+# Local user config (may contain real subdomains/client IDs); .cargo/config.toml is tracked
+/config.toml
+!.cargo/config.toml
+
+# OS artifacts
+.DS_Store
+Thumbs.db
