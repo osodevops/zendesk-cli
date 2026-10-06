@@ -4,7 +4,7 @@ members = ["crates/zdk-core", "crates/zdk-cli", "xtask"]
 default-members = ["crates/zdk-core", "crates/zdk-cli"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
@@ -15,7 +15,7 @@ keywords = ["zendesk", "cli", "oauth", "support", "ai-agent"]
 categories = ["command-line-utilities"]
 
 [workspace.dependencies]
-zdk-core = { path = "crates/zdk-core", version = "0.1.0" }   # keep equal to [workspace.package] version (guarded by scripts/check-release-version.py)
+zdk-core = { path = "crates/zdk-core", version = "0.1.1" }   # keep equal to [workspace.package] version (guarded by scripts/check-release-version.py)
 
 # CLI
 clap = { version = "4.6", features = ["derive", "env", "string", "wrap_help"] }
@@ -62,6 +62,7 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 humantime = "2.4"
 uuid = { version = "1.26", features = ["v4"] }
 dirs = "7"
+fs2 = "0.4"
 
 # output / diagnostics
 comfy-table = "8"

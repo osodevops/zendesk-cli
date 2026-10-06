@@ -203,6 +203,8 @@ The encrypted file is `credentials.enc` next to `config.toml`, XChaCha20-Poly130
 
 Access tokens are refreshed pre-emptively once 80 % of their lifetime has elapsed (`[auth].refresh_at_percent`); Zendesk rotates refresh tokens, so the new pair is persisted before it is used and the old refresh token is never retried. If the new pair cannot be saved the running command completes and then exits 10 with `run zdk auth login`.
 
+Concurrent commands coordinate OAuth refreshes with an OS file lock and reread the stored credentials after acquiring it. A command with a stale token reuses another command's saved rotation instead of redeeming the old refresh token. Automatic refresh and `auth refresh` share this protection. Lock waits are bounded to 60 seconds and process exit releases the lock. Keyring locks are per profile under the state directory; encrypted-file refreshes share one lock beside the credential file. Lock files contain no credentials and must not be removed while commands are running. Genuine revocation or refresh-token expiry still requires login.
+
 ## Agent Workflow Patterns
 
 ```bash

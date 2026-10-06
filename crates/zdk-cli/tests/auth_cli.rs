@@ -8,8 +8,104 @@ mod common;
 use assert_cmd::Command;
 use common::{FAST_CONFIG, Harness, json, stderr_error};
 use predicates::prelude::*;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 use wiremock::matchers::{body_string_contains, header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+#[tokio::test(flavor = "multi_thread")]
+async fn automatic_and_manual_refresh_share_one_rotation_across_processes() {
+    use chrono::{TimeDelta, Utc};
+    use secrecy::{ExposeSecret, SecretString};
+    use zdk_core::auth::{
+        GrantKind,
+        token::{Credential, TokenSet},
+    };
+    use zdk_core::config::{EnvOverrides, Paths};
+    use zdk_core::store::{CredentialStore, FileStore};
+
+    let server = MockServer::start().await;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let responder_calls = calls.clone();
+    Mock::given(method("POST"))
+        .and(path("/oauth/tokens"))
+        .respond_with(move |_: &wiremock::Request| {
+            if responder_calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                ResponseTemplate::new(200).set_delay(std::time::Duration::from_millis(800))
+                    .set_body_json(serde_json::json!({"access_token":"fresh-access", "refresh_token":"fresh-refresh", "expires_in":1800, "token_type":"bearer"}))
+            } else {
+                ResponseTemplate::new(400).set_body_json(serde_json::json!({"error":"invalid_grant"}))
+            }
+        })
+        .mount(&server).await;
+    let h = Harness::new();
+    h.write_config(FAST_CONFIG);
+    let paths = Paths {
+        config_file: h.config_path(),
+        config_dir: h.config_path().parent().unwrap().to_path_buf(),
+        state_dir: h.home.join("state/zendesk-cli"),
+        cache_dir: h.home.join("cache/zendesk-cli"),
+    };
+    let store = FileStore::new(&paths, &EnvOverrides::default());
+    let obtained = Utc::now() - TimeDelta::hours(1);
+    store
+        .save(
+            "default",
+            &Credential::OAuth(TokenSet {
+                access_token: SecretString::from("old-access".to_string()),
+                token_type: "bearer".into(),
+                scopes: vec!["read".into()],
+                obtained_at: obtained,
+                expires_at: Some(obtained + TimeDelta::minutes(30)),
+                refresh_token: Some(SecretString::from("old-refresh".to_string())),
+                refresh_expires_at: None,
+                grant: GrantKind::AuthorizationCode,
+                subdomain: "test".into(),
+                client_id: "test-client".into(),
+                client_secret: None,
+            }),
+        )
+        .unwrap();
+    let mut automatic = zdk_file_store(&h, &server.uri());
+    automatic.args(["auth", "token", "--format", "raw"]);
+    let automatic = tokio::task::spawn_blocking(move || automatic.output().unwrap());
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        while calls.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let mut manual = zdk_file_store(&h, &server.uri());
+    manual.args(["auth", "refresh"]);
+    let manual = tokio::task::spawn_blocking(move || manual.output().unwrap());
+    let first = automatic.await.unwrap();
+    let second = manual.await.unwrap();
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    assert!(
+        second.status.success(),
+        "{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "one redemption shared by both CLI processes"
+    );
+    let Credential::OAuth(saved) = store.load("default").unwrap().unwrap() else {
+        panic!("OAuth expected")
+    };
+    assert_eq!(
+        saved.refresh_token.unwrap().expose_secret(),
+        "fresh-refresh"
+    );
+}
 
 /// A `zdk` command using the file store against the mock, with no token in the environment.
 fn zdk_file_store(h: &Harness, base_url: &str) -> Command {

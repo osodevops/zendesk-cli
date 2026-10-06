@@ -375,6 +375,65 @@ async fn provider_refreshes_at_80_percent_and_rotates_without_reusing_the_old_to
 }
 
 #[tokio::test]
+async fn stale_provider_reuses_another_providers_persisted_rotation() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth/tokens"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(token_json("A2", Some("R2"))))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let store: SharedStore = Arc::new(MemoryStore::new());
+    store
+        .save(
+            "default",
+            &Credential::OAuth(stored_token(3600, Some("R1"))),
+        )
+        .unwrap();
+    let (s, env) = settings(&server, &[]);
+    let first = auth::resolve_provider(&s, &env, store.clone()).unwrap();
+    let stale = auth::resolve_provider(&s, &env, store).unwrap();
+    assert_eq!(first.authorization().await.unwrap(), "Bearer A2");
+    assert!(
+        stale.invalidate().await.unwrap(),
+        "a stale 401 must share the saved rotation too"
+    );
+    assert_eq!(stale.authorization().await.unwrap(), "Bearer A2");
+    assert_eq!(
+        token_posts(&server).await.len(),
+        1,
+        "never redeem an already rotated token"
+    );
+}
+
+#[tokio::test]
+async fn stale_provider_does_not_refresh_a_logged_out_or_replaced_profile() {
+    let server = MockServer::start().await;
+    let store: SharedStore = Arc::new(MemoryStore::new());
+    let original = stored_token(3600, Some("R1"));
+    store
+        .save("default", &Credential::OAuth(original.clone()))
+        .unwrap();
+    let (s, env) = settings(&server, &[]);
+    let provider = auth::resolve_provider(&s, &env, store.clone()).unwrap();
+    store.delete("default").unwrap();
+    assert_eq!(
+        provider.authorization().await.unwrap_err().error_code(),
+        "AUTH_NOT_LOGGED_IN"
+    );
+    let mut replacement = original;
+    replacement.client_id = "another-client".into();
+    store
+        .save("default", &Credential::OAuth(replacement))
+        .unwrap();
+    assert_eq!(
+        provider.authorization().await.unwrap_err().error_code(),
+        "AUTH_REVOKED"
+    );
+    assert!(token_posts(&server).await.is_empty());
+}
+
+#[tokio::test]
 async fn rotation_persist_failure_keeps_the_fresh_bearer_and_reports_it() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))

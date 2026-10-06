@@ -63,7 +63,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this list; `CI Complete` is the req
 5. **Generated code is committed and reproducible.** `cargo xtask codegen` on unchanged specs is byte-identical; CI diffs it. Never hand-edit `api/generated/`; patch inference in `xtask/overrides.toml` or `xtask/scope_map.toml`.
 6. **Destructive commands need `--yes` or an interactive confirmation that names the active profile and subdomain**; on a non-TTY without `--yes` they exit 2 before any HTTP.
 7. **Never request an empty OAuth scope** (Zendesk grants full read+write); `scopes::validate_requested` rejects it and `auth login` falls back to the `agent` preset when nothing is configured.
-8. **Refresh-token rotation is persisted before use.** Save failure → the command completes, then exit 10 with "run `zdk auth login`"; never reuse the old refresh token.
+8. **Refresh-token rotation is persisted before use.** Cross-process OS locks cover refresh and persistence; reread the store under the lock and reuse a newer saved token rather than redeeming a stale one. Keyring locks are per profile in the state directory, file-store refreshes share one lock in the config directory, and waits time out after 60 seconds. Save failure → the command completes, then exit 10 with "run `zdk auth login`"; never reuse the old refresh token.
 9. **`std::env::var` only in `config/env.rs`** (clippy `disallowed_methods`); everything else receives `EnvOverrides`.
 
 ## Exit codes (PRD §14.3, `error.rs`)
