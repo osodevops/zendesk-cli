@@ -4,7 +4,7 @@ members = ["crates/zdk-core", "crates/zdk-cli", "xtask"]
 default-members = ["crates/zdk-core", "crates/zdk-cli"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
@@ -15,7 +15,7 @@ keywords = ["zendesk", "cli", "oauth", "support", "ai-agent"]
 categories = ["command-line-utilities"]
 
 [workspace.dependencies]
-zdk-core = { path = "crates/zdk-core", version = "0.1.1" }   # keep equal to [workspace.package] version (guarded by scripts/check-release-version.py)
+zdk-core = { path = "crates/zdk-core", version = "0.1.2" }   # keep equal to [workspace.package] version (guarded by scripts/check-release-version.py)
 
 # CLI
 clap = { version = "4.6", features = ["derive", "env", "string", "wrap_help"] }
@@ -27,7 +27,7 @@ tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "ti
 tokio-util = { version = "0.7", features = ["rt"] }
 # ring provider everywhere: one TLS code path on all 7 targets (aws-lc-rs needs cmake/NASM on cross targets)
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "gzip", "stream", "multipart", "http2", "charset", "system-proxy"] }
-rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 http = "1"
 url = "2.5"
 bytes = "1"
