@@ -49,6 +49,7 @@ chrono = { workspace = true }
 humantime = { workspace = true }
 uuid = { workspace = true }
 dirs = { workspace = true }
+fs2 = { workspace = true }
 comfy-table = { workspace = true }
 indicatif = { workspace = true }
 jaq-core = { workspace = true }

@@ -269,6 +269,19 @@ impl OAuthProvider {
         &self.refresher
     }
 
+    fn with_refresh_lock(mut self, path: Option<std::path::PathBuf>) -> Self {
+        self.refresher = Arc::new(
+            TokenRefresher::new(
+                self.http.clone(),
+                self.base.clone(),
+                self.profile.clone(),
+                self.store.clone(),
+            )
+            .with_lock_path(path),
+        );
+        self
+    }
+
     /// The token set currently in use (a clone; secrets stay wrapped).
     #[must_use]
     pub fn cached(&self) -> Option<TokenSet> {
@@ -489,15 +502,19 @@ pub fn resolve_provider(
     match store.load(&profile)? {
         Some(Credential::OAuth(token)) => {
             let base = base_url_for(settings, &token.subdomain)?;
-            Ok(Arc::new(OAuthProvider::new(
-                profile,
-                store,
-                base,
-                http_client(settings.timeout)?,
-                settings.auth.clone(),
-                env.client_secret.clone(),
-                Some(token),
-            )))
+            let lock_path = refresh::lock_path(settings, &store);
+            Ok(Arc::new(
+                OAuthProvider::new(
+                    profile,
+                    store,
+                    base,
+                    http_client(settings.timeout)?,
+                    settings.auth.clone(),
+                    env.client_secret.clone(),
+                    Some(token),
+                )
+                .with_refresh_lock(lock_path),
+            ))
         }
         Some(Credential::ApiToken {
             email,
@@ -973,7 +990,8 @@ pub async fn refresh_now(
         store.save(&profile, &Credential::OAuth(fresh.clone()))?;
         return Ok(fresh);
     }
-    let refresher = TokenRefresher::new(http, base, profile, store.clone());
+    let refresher = TokenRefresher::new(http, base, profile, store.clone())
+        .with_lock_path(refresh::lock_path(settings, store));
     let fresh = refresher
         .refresh(&current, env.client_secret.as_ref())
         .await?;
