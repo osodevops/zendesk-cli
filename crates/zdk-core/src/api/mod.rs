@@ -411,8 +411,8 @@ mod tests {
             find_operations("help_center.ListLocales")[0].qualified_id(),
             "help_center.ListLocales"
         );
-        assert!(find_operations("voice.ListLocales").is_empty());
-        assert!(find_operations("NoSuchOperation").is_empty());
+        assert_eq!(find_operations("voice.ListLocales").len(), 0);
+        assert_eq!(find_operations("NoSuchOperation").len(), 0);
     }
 
     #[test]

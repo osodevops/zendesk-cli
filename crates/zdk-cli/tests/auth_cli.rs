@@ -366,7 +366,7 @@ async fn client_credentials_login_persists_and_drives_status_token_check_refresh
         .code(3)
         .get_output()
         .clone();
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     assert_eq!(
         stderr_error(&out.stderr)["error"]["code"],
         "AUTH_NOT_LOGGED_IN"
@@ -728,7 +728,7 @@ async fn whoami_on_401_exits_3_with_an_auth_error_code() {
         .code(3)
         .get_output()
         .clone();
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     let err = stderr_error(&out.stderr);
     assert!(
         err["error"]["code"]

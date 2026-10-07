@@ -93,7 +93,7 @@ mod tests {
         assert_eq!(links[0].rel, "next");
         assert!(links[0].url.ends_with("ids=1,2"));
         assert_eq!(links[1].rel, "prev");
-        assert!(parse("garbage").is_empty());
+        assert_eq!(parse("garbage").len(), 0);
         assert_eq!(parse("<https://a/b>")[0].rel, "");
     }
 

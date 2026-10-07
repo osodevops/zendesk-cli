@@ -11,6 +11,13 @@ the GitHub Release body, so every release PR must add one. Unreleased work goes 
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-06
+
+### Fixed
+
+- Recognize Windows lock contention using the portable fs2 OS error, so concurrent refresh commands wait instead of failing.
+- Upgrade rustls to 0.23.45 to address RUSTSEC-2026-0285 and restore release security gates.
+
 ## [0.1.1] - 2026-10-06
 
 ### Fixed
@@ -34,6 +41,7 @@ the GitHub Release body, so every release PR must add one. Unreleased work goes 
 - **Shell integration**: `zdk completions bash|zsh|fish|powershell|elvish` and `zdk man --to DIR` (one page per subcommand), both shipped in release archives.
 - **Distribution**: 7-target release pipeline (macOS arm64/x64, Linux musl arm64/x64 and glibc x64, Windows x64/arm64) with build-provenance attestations, `checksums-sha256.txt`, Homebrew tap and Scoop bucket updates.
 
-[Unreleased]: https://github.com/osodevops/zendesk-cli/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/osodevops/zendesk-cli/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/osodevops/zendesk-cli/releases/tag/v0.1.2
 [0.1.1]: https://github.com/osodevops/zendesk-cli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/osodevops/zendesk-cli/releases/tag/v0.1.0

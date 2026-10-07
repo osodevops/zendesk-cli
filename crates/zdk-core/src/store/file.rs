@@ -460,7 +460,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let s = passphrase_store(dir.path(), "correct horse");
         assert!(s.load("work").unwrap().is_none());
-        assert!(s.list_profiles().unwrap().is_empty());
+        assert_eq!(s.list_profiles().unwrap().len(), 0);
 
         s.save("work", &cred("acme")).unwrap();
         s.save("home", &cred("home")).unwrap();

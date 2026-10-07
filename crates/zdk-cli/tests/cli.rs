@@ -344,7 +344,7 @@ fn table_mode_errors_are_miette_reports_on_stderr() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("zdk::config"), "{stderr}");
     assert!(stderr.contains("help:"), "{stderr}");
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
 }
 
 #[test]
@@ -1073,7 +1073,7 @@ async fn api_errors_map_to_exit_codes_with_json_on_stderr() {
         .code(5)
         .get_output()
         .clone();
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     let err = stderr_error(&out.stderr);
     assert_eq!(err["error"]["code"], "NOT_FOUND");
     assert_eq!(err["error"]["exit_code"], 5);

@@ -322,7 +322,7 @@ mod tests {
         assert!(env.subdomain.is_none());
         assert!(!env.no_color);
         assert!(!env.no_cache);
-        assert!(env.secrets_present().is_empty());
+        assert_eq!(env.secrets_present().len(), 0);
     }
 
     #[test]

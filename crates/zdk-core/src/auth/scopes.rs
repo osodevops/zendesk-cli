@@ -583,7 +583,7 @@ mod tests {
                     assert_eq!(a, Some(expected), "{}", def.name);
                 }
             }
-            assert!(!def.description.is_empty());
+            assert_ne!(def.description, "");
         }
     }
 
@@ -618,17 +618,17 @@ mod tests {
         assert_eq!(required_for(&["tickets", "update"]), ["tickets:write"]);
         assert_eq!(required_for(&["search"]), ["read"]);
         assert_eq!(required_for(&["search", "count"]), ["read"], "prefix match");
-        assert!(required_for(&["search", "explain"]).is_empty());
-        assert!(required_for(&["api", "GET", "/api/v2/tickets"]).is_empty());
+        assert_eq!(required_for(&["search", "explain"]).len(), 0);
+        assert_eq!(required_for(&["api", "GET", "/api/v2/tickets"]).len(), 0);
         assert_eq!(required_for(&["users", "me"]), ["users:read"]);
         assert_eq!(required_for(&["auth", "whoami"]), ["users:read"]);
-        assert!(required_for(&["auth", "login"]).is_empty());
+        assert_eq!(required_for(&["auth", "login"]).len(), 0);
         assert_eq!(
             required_for(&["organizations", "list"]),
             ["organizations:read"]
         );
-        assert!(required_for(&["nope"]).is_empty());
-        assert!(required_for(&[]).is_empty());
+        assert_eq!(required_for(&["nope"]).len(), 0);
+        assert_eq!(required_for(&[]).len(), 0);
     }
 
     #[test]
@@ -687,7 +687,7 @@ mod tests {
     #[test]
     fn parse_list_and_expand() {
         assert_eq!(parse_list("a,b c,, d\ta"), vec!["a", "b", "c", "d"]);
-        assert!(parse_list("  ").is_empty());
+        assert_eq!(parse_list("  ").len(), 0);
         let out = expand(&s(&["exporter"]), &s(&["hc:read", "tickets:read"])).unwrap();
         assert_eq!(
             out,

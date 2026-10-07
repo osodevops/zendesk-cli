@@ -60,7 +60,7 @@ fn file_store_end_to_end_with_the_machine_key() {
     let s = store::open(StoreSelector::File, &p, &env).unwrap();
     assert_eq!(s.kind(), StoreKind::File);
     assert!(s.load("default").unwrap().is_none());
-    assert!(s.list_profiles().unwrap().is_empty());
+    assert_eq!(s.list_profiles().unwrap().len(), 0);
 
     s.save("default", &oauth("acme")).unwrap();
     s.save("staging", &oauth("acme-staging")).unwrap();

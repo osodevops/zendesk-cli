@@ -314,7 +314,7 @@ mod tests {
         let backend = Box::new(MemorySecretStore::new());
         let s = KeyringStore::with_backend(backend);
         assert!(s.load("work").unwrap().is_none());
-        assert!(s.list_profiles().unwrap().is_empty());
+        assert_eq!(s.list_profiles().unwrap().len(), 0);
 
         s.save("work", &oauth("acme")).unwrap();
         s.save("work", &oauth("acme2")).unwrap();

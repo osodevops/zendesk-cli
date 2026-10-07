@@ -176,7 +176,7 @@ mod tests {
         assert_eq!(s.query_value("include"), Some("users,groups"));
         assert_eq!(s.op.map(|o| o.id), Some("ListTickets"));
         let plain = list(&ListOptions::default());
-        assert!(plain.query.is_empty());
+        assert_eq!(plain.query.len(), 0);
         let asc = list(&ListOptions {
             sort_by: Some("created_at".into()),
             ..Default::default()

@@ -228,7 +228,7 @@ async fn acquire_lock(path: &std::path::Path) -> Result<std::fs::File> {
         loop {
             match file.try_lock_exclusive() {
                 Ok(()) => return Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                Err(e) if e.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {
                     tokio::time::sleep(Duration::from_millis(25)).await;
                 }
                 Err(e) => return Err(map_error(e)),

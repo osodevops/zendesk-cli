@@ -440,7 +440,7 @@ mod tests {
     fn every_preset_resolves_by_name_and_alias() {
         for p in presets::all() {
             assert!(std::ptr::eq(presets::for_resource(p.resource).unwrap(), *p));
-            assert!(!p.columns.is_empty());
+            assert_ne!(p.columns.len(), 0);
         }
         assert_eq!(
             presets::for_resource("orgs").unwrap().resource,
