@@ -582,9 +582,9 @@ mod tests {
         assert_eq!(extract_items(&body, Some("users")).len(), 1);
         assert_eq!(extract_items(&body, None).len(), 2);
         assert_eq!(detect_items_key(&body).as_deref(), Some("tickets"));
-        assert!(extract_items(&body, Some("nope")).is_empty());
+        assert_eq!(extract_items(&body, Some("nope")).len(), 0);
         assert_eq!(extract_items(&json!([1, 2, 3]), None).len(), 3);
-        assert!(extract_items(&json!({"ticket": {"id": 1}}), None).is_empty());
+        assert_eq!(extract_items(&json!({"ticket": {"id": 1}}), None).len(), 0);
         assert!(detect_items_key(&json!("x")).is_none());
     }
 

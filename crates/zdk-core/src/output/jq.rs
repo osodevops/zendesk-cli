@@ -131,7 +131,7 @@ mod tests {
             apply(".[]", json!([1, 2])).unwrap(),
             vec![json!(1), json!(2)]
         );
-        assert!(apply("empty", json!(1)).unwrap().is_empty());
+        assert_eq!(apply("empty", json!(1)).unwrap().len(), 0);
     }
 
     #[test]

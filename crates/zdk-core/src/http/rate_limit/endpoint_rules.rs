@@ -295,8 +295,8 @@ mod tests {
                 ("ticket_update_per_ticket", Some("42".into()))
             ]
         );
-        assert!(match_rules(Method::Get, "/api/v2/tickets/42").is_empty());
-        assert!(match_rules(Method::Put, "/api/v2/tickets/42/tags").is_empty());
+        assert_eq!(match_rules(Method::Get, "/api/v2/tickets/42").len(), 0);
+        assert_eq!(match_rules(Method::Put, "/api/v2/tickets/42/tags").len(), 0);
     }
 
     #[test]

@@ -373,7 +373,7 @@ mod tests {
         assert_eq!(t.token_type, "bearer");
         assert!(t.expires_at.is_none());
         assert!(t.refresh_token.is_none());
-        assert!(t.scopes.is_empty());
+        assert_eq!(t.scopes.len(), 0);
         assert!(!format!("{t:?}").contains("\"a\""));
     }
 

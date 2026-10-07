@@ -417,7 +417,7 @@ mod tests {
             tokenize("a \"b c\" d:\"e f\"  g"),
             ["a", "\"b c\"", "d:\"e f\"", "g"]
         );
-        assert!(tokenize("   ").is_empty());
+        assert_eq!(tokenize("   ").len(), 0);
         assert_eq!(quote("plain"), "plain");
         assert_eq!(quote("two words"), "\"two words\"");
         assert_eq!(quote(""), "\"\"");

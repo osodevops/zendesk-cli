@@ -809,7 +809,7 @@ async fn tickets_dry_run_sends_nothing_and_exits_zero() {
     let v = json(&out.stdout);
     assert_eq!(v["method"], "POST");
     assert_eq!(v["body"]["ticket"]["requester"]["email"], "a@b.c");
-    assert!(out.stderr.is_empty());
+    assert_eq!(out.stderr.len(), 0);
     // Destructive + dry-run: no confirmation needed, nothing sent.
     let out = h
         .zdk_api(&server.uri())
@@ -855,7 +855,7 @@ async fn tickets_errors_map_to_exit_codes() {
         .code(5)
         .get_output()
         .clone();
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout.len(), 0);
     let err = stderr_error(&out.stderr);
     assert_eq!(err["error"]["code"], "NOT_FOUND");
     assert_eq!(err["error"]["request_id"], "rid-1");

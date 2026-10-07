@@ -86,7 +86,7 @@ mod tests {
         assert_eq!(s.query_value("include_inline_images"), Some("true"));
         assert_eq!(s.query_value("sort"), Some("-created_at"));
         assert_eq!(s.op.map(|o| o.id), Some("ListTicketComments"));
-        assert!(list(5, &ListOptions::default()).query.is_empty());
+        assert_eq!(list(5, &ListOptions::default()).query.len(), 0);
     }
 
     #[test]

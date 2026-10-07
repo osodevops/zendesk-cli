@@ -100,7 +100,7 @@ mod tests {
         assert_eq!(err.exit_code(), 10);
         assert!(err.to_string().contains("read-only"));
         assert_eq!(store.delete("p").unwrap_err().exit_code(), 10);
-        assert!(store.list_profiles().unwrap().is_empty());
+        assert_eq!(store.list_profiles().unwrap().len(), 0);
         assert!(!format!("{store:?}").contains("tok\""));
     }
 

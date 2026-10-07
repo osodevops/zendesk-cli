@@ -1263,7 +1263,7 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.error_code(), "AUTH_CLIENT_SECRET_REQUIRED");
-        assert!(store.list_profiles().unwrap().is_empty());
+        assert_eq!(store.list_profiles().unwrap().len(), 0);
     }
 
     #[test]
@@ -1295,7 +1295,7 @@ mod tests {
         let s = settings(&env);
         let r = logout(&s, &store, LogoutOptions::default()).await.unwrap();
         assert_eq!(r.not_found, vec!["default"]);
-        assert!(r.removed.is_empty());
+        assert_eq!(r.removed.len(), 0);
 
         login_api_token(
             &s,
@@ -1323,6 +1323,6 @@ mod tests {
         .unwrap();
         assert_eq!(r.removed, vec!["default", "other"]);
         assert!(r.revoked.is_empty() && r.revoke_errors.is_empty());
-        assert!(store.list_profiles().unwrap().is_empty());
+        assert_eq!(store.list_profiles().unwrap().len(), 0);
     }
 }

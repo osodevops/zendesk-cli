@@ -430,7 +430,7 @@ async fn stale_provider_does_not_refresh_a_logged_out_or_replaced_profile() {
         provider.authorization().await.unwrap_err().error_code(),
         "AUTH_REVOKED"
     );
-    assert!(token_posts(&server).await.is_empty());
+    assert_eq!(token_posts(&server).await.len(), 0);
 }
 
 #[tokio::test]
@@ -603,7 +603,7 @@ async fn logout_revokes_then_deletes_and_records_failures() {
         .unwrap();
     assert_eq!(report.revoked, vec!["default"]);
     assert_eq!(report.removed, vec!["default"]);
-    assert!(report.revoke_errors.is_empty());
+    assert_eq!(report.revoke_errors.len(), 0);
     assert!(store.load("default").unwrap().is_none());
 
     // Revocation failure still removes the credential and is reported.
