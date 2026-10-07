@@ -520,7 +520,7 @@ async fn offset_limit_400_maps_to_pagination_limit() {
             alternatives,
         } => {
             assert_eq!(endpoint, "/api/v2/tickets");
-            assert!(!alternatives.is_empty());
+            assert_ne!(alternatives.len(), 0);
         }
         other => panic!("expected PaginationLimit, got {other:?}"),
     }

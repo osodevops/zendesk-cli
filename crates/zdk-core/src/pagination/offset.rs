@@ -249,7 +249,7 @@ mod tests {
         }
         assert!(alternatives_for("/api/v2/tickets")[0].contains("tickets list --all"));
         assert!(alternatives_for("/api/v2/views/1/tickets")[0].contains("export"));
-        assert!(!alternatives_for("/api/v2/organizations").is_empty());
+        assert_ne!(alternatives_for("/api/v2/organizations").len(), 0);
     }
 
     #[test]

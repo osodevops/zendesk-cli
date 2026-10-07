@@ -899,7 +899,7 @@ scopes = ["tickets:read", "users:read", "auditlogs:read"]
         assert_eq!(p.subdomain.as_deref(), Some("acme"));
         assert_eq!(p.client_id.as_deref(), Some("zdk_local"));
         assert_eq!(p.grant_type, Some(GrantKind::ClientCredentials));
-        assert!(cfg.unknown_keys().is_empty());
+        assert_ne!(p.scopes.len(), 0);
         assert_eq!(cfg.unknown_keys().len(), 0);
     }
 

@@ -583,7 +583,7 @@ mod tests {
                     assert_eq!(a, Some(expected), "{}", def.name);
                 }
             }
-            assert!(!def.description.is_empty());
+            assert_ne!(def.description, "");
         }
     }
 
